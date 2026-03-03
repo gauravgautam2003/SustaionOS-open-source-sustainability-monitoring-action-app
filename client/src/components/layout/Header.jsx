@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaBars, FaTimes, FaUser, FaLeaf } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
@@ -6,6 +6,10 @@ import { useNavigate } from 'react-router-dom';
 
 const Navbar = () => {
     const [isOpen, setIsOpen] = useState(false);
+    const [forceVisible, setForceVisible] = useState(false);
+    const [visible, setVisible] = useState(true);
+    const lastScrollY = useRef(0);
+    const timerId = useRef(null);
     const navigate = useNavigate();
 
     const toggleMenu = () => {
@@ -52,10 +56,52 @@ const Navbar = () => {
             },
         }),
     };
+    useEffect(() => {
+        const homeSection = document.querySelector("#home");
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting) {
+                    setForceVisible(true);
+                } else {
+                    setForceVisible(false);
+                }
+            }, { threshold: 0.1 }
+        )
+        if (homeSection) observer.observe(homeSection);
+        return () => {
+            if (homeSection) observer.unobserve(homeSection);
+        }
+    }, [])
+
+    useEffect(() => {
+        const handleScroll = () => {
+            if (forceVisible) {
+                setVisible(true);
+                return
+            }
+            const currentScrollY = window.scrollY;
+            if (currentScrollY > lastScrollY.current) {
+                setVisible(false);
+            } else {
+                setVisible(true);
+                if (timerId.current) clearTimeout(timerId.current);
+                timerId.current = setTimeout(() => {
+                    setVisible(false);
+                }, 3000)
+            }
+            lastScrollY.current = currentScrollY;
+        }
+        window.addEventListener("scroll", handleScroll, { passive: true });
+
+        return () => {
+            window.removeEventListener("scroll", handleScroll);
+            if (timerId.current) clearTimeout(timerId.current);
+        }
+    }, [forceVisible])
 
     return (
-        <nav className="fixed shadow-md top-0 left-0 right-0 z-50 bg-black/95 opacity-95">
-            <div className="w-full max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
+        <nav className={`fixed shadow-md top-0 left-0 right-0 z-50 bg-black/95 opacity-80 transition-transform  duration-300 ${visible ? "translate-y-0" : "-translate-y-full"}`}>
+            <div className="w-full max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 bg-transparent">
                 <div className="flex justify-between items-center h-14 sm:h-16 md:h-20">
                     {/* Logo */}
                     <motion.div
@@ -121,14 +167,14 @@ const Navbar = () => {
                 </div>
             </div>
 
-            <div className='w-full border border-white bg-transparent opacity-25'></div>
+            <div className='w-full border border-white bg-black/95 opacity-80'></div>
             {/* Mobile Menu */}
             <AnimatePresence>
                 {isOpen && (
 
-                    <div className='bg-black/95 opacity-80 w-full min-h-screen'>
+                    <div className='fixed  w-full min-h-screen  bg-black/95 opacity-80'>
                         <motion.div
-                            className="md:hidden fixed inset-0 top-16 bg-transparent shadow-lg"
+                            className="md:hidden bg-transparent inset-0 top-16 shadow-lg"
                             variants={menuVariants}
                             initial="closed"
                             animate="open"

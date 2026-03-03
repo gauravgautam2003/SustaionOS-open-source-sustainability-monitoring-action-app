@@ -70,7 +70,7 @@ const Footer = () => {
     };
 
     return (
-        <footer className="relative w-full bottom-0 bg-black/95 opacity-80 text-white">
+        <footer className="relative w-full bottom-0 bg-black/95 opacity-95 text-white">
             <div className="w-full max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-8 sm:py-10 md:py-12 lg:py-16 bg-transparent">
                 <motion.div
                     variants={containerVariants}

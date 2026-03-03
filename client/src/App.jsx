@@ -1,5 +1,5 @@
 import React from 'react';
-import AppRoutes from './routes/AppRoutes';
+import AppRoutes from './routes/App.Routes';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
 import { useLocation } from 'react-router-dom';
@@ -18,7 +18,7 @@ function App() {
             </div>
             {!hideLayout && <Navbar />}
             <main className="">
-                <AppRoutes className="absolute"/>
+                <AppRoutes className="absolute" />
             </main>
             {!hideLayout && <Footer />}
         </>
