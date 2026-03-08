@@ -12,7 +12,8 @@ app.use("/api/carbon",require("./routes/carbon.routes"));
 app.use("/api/score",require("./routes/score.routes"));
 app.use("/api/report", require("./routes/report.routes"));
 app.use("/api/ai", require("./routes/ai.routes"));
-app.use("/api/score",require("./routes/score.routes"));
+app.use("/api/auth", require("./routes/auth.routes"));
+
 
 
 
