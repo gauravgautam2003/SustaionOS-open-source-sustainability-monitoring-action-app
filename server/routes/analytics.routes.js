@@ -1,6 +1,9 @@
-const router=require("express").Router();
-const ctrl=require("../controllers/analytics.controller");
+const express=require("express");
+const router=express.Router();
+const controller=require("../controllers/analytics.controller");
 
-router.get("/",ctrl.stats);
+router.get("/",controller.getAnalytics);
+router.get("/score",controller.getScore);
+router.get("/history",controller.getHistory);
 
 module.exports=router;

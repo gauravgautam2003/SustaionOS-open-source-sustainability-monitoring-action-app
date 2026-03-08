@@ -1,32 +1,25 @@
 const Data = require("../models/Data");
 const Alert = require("../models/Alert");
 
-exports.getScore = async (building) => {
+exports.calculateScore = async () => {
+  const data = await Data.find().sort({ createdAt: -1 }).limit(10);
+  const alerts = await Alert.find().sort({ createdAt: -1 }).limit(5);
 
- const data = await Data.find({building});
+  let score = 100;
 
- if(!data.length) return {score:0, grade:"N/A"};
+  const avgWater = data.reduce((a,b)=>a+b.water,0)/data.length || 0;
+  const avgEnergy = data.reduce((a,b)=>a+b.energy,0)/data.length || 0;
 
- const avgWater = data.reduce((a,b)=>a+b.water,0)/data.length;
- const avgEnergy = data.reduce((a,b)=>a+b.energy,0)/data.length;
+  if(avgWater > 1200) score -= 15;
+  if(avgEnergy > 320) score -= 15;
+  if(alerts.length > 0) score -= 20;
 
- const anomalies = await Alert.countDocuments({building});
+  let status="Excellent";
+  let message="Optimal sustainability performance";
 
- let score = 100 - ((avgWater+avgEnergy)/10 + anomalies*5);
+  if(score<90) {status="Good"; message="Usage is efficient";}
+  if(score<70) {status="Moderate"; message="Optimization recommended";}
+  if(score<50) {status="Poor"; message="High resource wastage detected";}
 
- if(score<0) score=0;
-
- let grade="D";
- if(score>90) grade="A+";
- else if(score>75) grade="A";
- else if(score>60) grade="B";
- else if(score>40) grade="C";
-
- return {
-  score:Math.round(score),
-  grade,
-  avgWater,
-  avgEnergy,
-  anomalies
- };
+  return {score,status,message};
 };
