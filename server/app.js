@@ -9,6 +9,7 @@ app.use("/api/analytics",require("./routes/analytics.routes"));
 app.use("/api/predict",require("./routes/prediction.routes"));
 app.use("/api/cost",require("./routes/cost.routes"));
 app.use("/api/carbon",require("./routes/carbon.routes"));
+app.use("/api/score",require("./routes/score.routes"));
 
 app.use(require("./middleware/error.middleware"));
 
