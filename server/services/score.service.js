@@ -1,24 +1,32 @@
-exports.calculateScore=(records,alerts)=>{
+const Data = require("../models/Data");
+const Alert = require("../models/Alert");
 
- let score=100;
+exports.getScore = async (building) => {
 
- records.forEach(r=>{
-  if(r.water>300) score-=15;
-  if(r.energy>200) score-=15;
- });
+ const data = await Data.find({building});
 
- score-=alerts.length*5;
+ if(!data.length) return {score:0, grade:"N/A"};
+
+ const avgWater = data.reduce((a,b)=>a+b.water,0)/data.length;
+ const avgEnergy = data.reduce((a,b)=>a+b.energy,0)/data.length;
+
+ const anomalies = await Alert.countDocuments({building});
+
+ let score = 100 - ((avgWater+avgEnergy)/10 + anomalies*5);
 
  if(score<0) score=0;
 
- let status="Excellent";
+ let grade="D";
+ if(score>90) grade="A+";
+ else if(score>75) grade="A";
+ else if(score>60) grade="B";
+ else if(score>40) grade="C";
 
- if(score<80) status="Good";
- if(score<60) status="Warning";
- if(score<40) status="Critical";
-
- return{
-  score,
-  status
+ return {
+  score:Math.round(score),
+  grade,
+  avgWater,
+  avgEnergy,
+  anomalies
  };
-}
+};
