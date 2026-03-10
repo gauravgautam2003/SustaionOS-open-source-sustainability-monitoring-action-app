@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Realtime Test</title>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+
+<body>
+<h2>Realtime Test Console</h2>
+
+<script>
+ const socket = io("http://localhost:5000");
+
+ socket.on("connect", () => {
+  console.log("✅ Connected:", socket.id);
+ });
+
+ socket.on("newData", data => {
+  console.log("📡 LIVE DATA:", data);
+ });
+
+ socket.on("newAlert", alert => {
+  console.log("🚨 ALERT:", alert);
+ });
+</script>
+
+</body>
+</html>
