@@ -53,3 +53,20 @@ exports.sendData = async (req, res, next) => {
   next(err);
  }
 };
+
+exports.getHistory = async (req, res, next) => {
+ try {
+
+  const Data = require("../models/Data");
+
+  const history = await Data
+   .find()
+   .sort({ timestamp: -1 })
+   .limit(100);
+
+  res.json(history);
+
+ } catch (err) {
+  next(err);
+ }
+};

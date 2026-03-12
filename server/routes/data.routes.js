@@ -11,6 +11,8 @@ router.get("/", (req, res) => {
   });
 });
 
+router.get("/history", ctrl.getHistory);
+
 // POST sensor data
 router.post("/", validate, ctrl.sendData);
 
