@@ -1,4 +1,4 @@
-const ai = require("../ai/ai.service");
+const decision = require("../ai/decision.engine");
 
 exports.ask = async (req, res, next) => {
   try {
@@ -9,55 +9,17 @@ exports.ask = async (req, res, next) => {
       return res.status(400).json({ msg: "Question required" });
     }
 
-    // AI prompt for sustainability insights
-    const prompt = `
-You are an AI sustainability expert.
+    // detect intent
+    const intentEngine = require("../ai/intent.engine");
+    const intent = intentEngine.detectIntent(question);
 
-Analyze energy usage, water consumption, carbon emissions and environmental impact.
-
-Give 3 actionable sustainability improvement suggestions.
-
-Return response strictly in JSON format like:
-
-{
- "suggestions":[
-  {
-   "title":"Suggestion title",
-   "message":"Detailed explanation"
-  }
- ]
-}
-`;
-
-    const aiResponse = await ai.askAI(prompt);
-
-    let suggestions = [];
-
-    try {
-      const parsed = JSON.parse(aiResponse);
-      suggestions = parsed.suggestions || [];
-    } catch (err) {
-
-      // fallback suggestions if AI response not JSON
-      suggestions = [
-        {
-          title: "Reduce Peak Energy Usage",
-          message: "Shift high-power operations to off-peak hours to reduce energy load and operational costs."
-        },
-        {
-          title: "Optimize Water Consumption",
-          message: "Install smart water monitoring systems to detect leaks and reduce unnecessary water usage."
-        },
-        {
-          title: "Lower Carbon Footprint",
-          message: "Adopt renewable energy sources and improve equipment efficiency to reduce carbon emissions."
-        }
-      ];
-    }
+    // get AI decision
+    const answer = await decision.generateDecision(intent);
 
     res.json({
       status: "success",
-      suggestions
+      intent,
+      answer
     });
 
   } catch (err) {
