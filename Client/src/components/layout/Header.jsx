@@ -1,11 +1,17 @@
 import React, { useState, useContext } from "react";
 import { Menu, Bell, User, ChevronDown } from "lucide-react";
 import { ThemeContext } from "../../context/ThemeContext";
+import { AuthContext } from "../../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 const Header = ({ setIsOpen }) => {
+
   const { darkMode, setDarkMode } = useContext(ThemeContext);
+  const { user, logout } = useContext(AuthContext);
+
+  const navigate = useNavigate();
+
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [loggedIn, setLoggedIn] = useState(true); // dummy login state
 
   return (
     <header
@@ -14,20 +20,29 @@ const Header = ({ setIsOpen }) => {
     >
       {/* Left Section */}
       <div className="flex items-center gap-4">
-        {/* Hamburger for mobile */}
+
+        {/* Mobile Menu */}
         <Menu
-          className={`cursor-pointer lg:hidden ${darkMode ? "text-white" : "text-black"}`}
+          className={`cursor-pointer lg:hidden ${
+            darkMode ? "text-white" : "text-black"
+          }`}
           onClick={() => setIsOpen(true)}
         />
 
         {/* Logo */}
-        <h1 className={`text-xl font-semibold ${darkMode ? "text-white" : "text-black"}`}>
+        <h1
+          className={`text-xl font-semibold ${
+            darkMode ? "text-white" : "text-black"
+          }`}
+        >
           Sustain<span className="text-primary">OS</span>
         </h1>
       </div>
 
       {/* Right Section */}
       <div className="flex items-center gap-4 relative">
+
+        {/* Notification */}
         <Bell
           className={`cursor-pointer transition hover:text-primary ${
             darkMode ? "text-gray-400" : "text-gray-600"
@@ -36,35 +51,44 @@ const Header = ({ setIsOpen }) => {
 
         {/* User Dropdown */}
         <div className="relative">
+
           <div
             className="flex items-center gap-1 cursor-pointer select-none"
             onClick={() => setUserMenuOpen(!userMenuOpen)}
           >
             <User
-              className={`${darkMode ? "text-gray-400" : "text-gray-600"} transition`}
+              className={`${
+                darkMode ? "text-gray-400" : "text-gray-600"
+              } transition`}
             />
+
             <ChevronDown
               size={16}
-              className={`${darkMode ? "text-gray-400" : "text-gray-600"} transition`}
+              className={`${
+                darkMode ? "text-gray-400" : "text-gray-600"
+              } transition`}
             />
           </div>
 
           {userMenuOpen && (
             <div
-              className={`absolute right-0 mt-2 w-40 bg-white dark:bg-cardBg border border-gray-300 dark:border-gray-700 rounded-lg shadow-lg z-50`}
+              className="absolute right-0 mt-2 w-40 bg-white dark:bg-cardBg border border-gray-300 dark:border-gray-700 rounded-lg shadow-lg z-50"
             >
-              {loggedIn ? (
+
+              {user ? (
                 <>
                   <button
                     className="w-full text-left px-4 py-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-t-lg"
                   >
                     Profile
                   </button>
+
                   <button
                     className="w-full text-left px-4 py-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-b-lg"
                     onClick={() => {
-                      setLoggedIn(false);
+                      logout();
                       setUserMenuOpen(false);
+                      navigate("/login");
                     }}
                   >
                     Logout
@@ -74,18 +98,19 @@ const Header = ({ setIsOpen }) => {
                 <button
                   className="w-full text-left px-4 py-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg"
                   onClick={() => {
-                    setLoggedIn(true);
+                    navigate("/login");
                     setUserMenuOpen(false);
                   }}
                 >
                   Login
                 </button>
               )}
+
             </div>
           )}
         </div>
 
-        {/* Dark/Light Toggle */}
+        {/* Dark Mode Toggle */}
         <button
           onClick={() => setDarkMode(!darkMode)}
           className={`w-12 h-6 flex items-center rounded-full p-1 transition ${
@@ -98,6 +123,7 @@ const Header = ({ setIsOpen }) => {
             }`}
           />
         </button>
+
       </div>
     </header>
   );
