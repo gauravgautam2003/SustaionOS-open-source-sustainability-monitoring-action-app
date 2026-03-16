@@ -1,10 +1,10 @@
 🌱 SustainOS AI
 
-"React" (https://img.shields.io/badge/Frontend-React-blue)
-"Node" (https://img.shields.io/badge/Backend-Node.js-green)
-"MongoDB" (https://img.shields.io/badge/Database-MongoDB-brightgreen)
-"AI" (https://img.shields.io/badge/AI-Decision%20Engine-purple)
-"License" (https://img.shields.io/badge/License-MIT-orange)
+![React](https://img.shields.io/badge/Frontend-React-blue)
+![Node](https://img.shields.io/badge/Backend-Node.js-green)
+![MongoDB](https://img.shields.io/badge/Database-MongoDB-brightgreen)
+![AI](https://img.shields.io/badge/AI-Decision%20Engine-purple)
+![License](https://img.shields.io/badge/License-MIT-orange)
 
 Intelligent Sustainability Monitoring & Decision Platform
 
@@ -22,44 +22,42 @@ This project was developed during a hackathon by Team ByteCoder.
 
 A short demo video of the platform will be added soon.
 
-📹 Demo Link: (Add your demo video link here)
-
----
 
 📸 Application Screenshots
 
 🏠 Dashboard Overview
 
-"Dashboard" (screenshots/dashboard.png)
+![Dashboard](screenshots/dashboard.png)
 
 📊 Analytics Dashboard
 
-"Analytics" (screenshots/analytics.png)
+![Analytics](screenshots/analytics.png)
 
 📜 Historical Data Monitoring
 
-"History" (screenshots/history.png)
+![History](screenshots/history.png)
 
 🧾 Sustainability Reports
 
-"Reports" (screenshots/reports.png)
+![Reports](screenshots/reports.png)
 
 🤖 AI Sustainability Assistant
 
-"AI Assistant" (screenshots/ai-chat.png)
+![AI Assistant](screenshots/ai-chat.png)
+
 
 🔐 Login Interface
 
-"Login" (screenshots/login.png)
+[Login](screenshots/login.png)
 
 📝 Registration Page
 
-"Register" (screenshots/register.png)
+![Register](screenshots/register.png)
 
 
 ⚙️ Settings & User Preferences
 
-"Settings" (screenshots/setting.png)
+![Settings](screenshots/settings.png)
 
 ---
 
