@@ -1,5 +1,11 @@
 🌱 SustainOS AI
 
+"React" (https://img.shields.io/badge/Frontend-React-blue)
+"Node" (https://img.shields.io/badge/Backend-Node.js-green)
+"MongoDB" (https://img.shields.io/badge/Database-MongoDB-brightgreen)
+"AI" (https://img.shields.io/badge/AI-Decision%20Engine-purple)
+"License" (https://img.shields.io/badge/License-MIT-orange)
+
 Intelligent Sustainability Monitoring & Decision Platform
 
 🚀 AI-Powered Resource Optimization for Smart Buildings
@@ -9,6 +15,51 @@ SustainOS AI is a full-stack sustainability intelligence platform designed to mo
 The system combines data analytics, anomaly detection, and AI decision engines to help organizations detect waste, optimize resource usage, and reduce environmental impact.
 
 This project was developed during a hackathon by Team ByteCoder.
+
+---
+
+🎥 Demo Preview
+
+A short demo video of the platform will be added soon.
+
+📹 Demo Link: (Add your demo video link here)
+
+---
+
+📸 Application Screenshots
+
+🏠 Dashboard Overview
+
+"Dashboard" (screenshots/dashboard.png)
+
+📊 Analytics Dashboard
+
+"Analytics" (screenshots/analytics.png)
+
+📜 Historical Data Monitoring
+
+"History" (screenshots/history.png)
+
+🧾 Sustainability Reports
+
+"Reports" (screenshots/reports.png)
+
+🤖 AI Sustainability Assistant
+
+"AI Assistant" (screenshots/ai-chat.png)
+
+🔐 Login Interface
+
+"Login" (screenshots/login.png)
+
+📝 Registration Page
+
+"Register" (screenshots/register.png)
+
+
+⚙️ Settings & User Preferences
+
+"Settings" (screenshots/setting.png)
 
 ---
 
@@ -32,7 +83,7 @@ The platform helps organizations analyze, monitor, and optimize sustainability p
 
 📊 Real-Time Resource Monitoring
 
-Track and analyze important sustainability metrics such as:
+Track important sustainability metrics such as:
 
 • Energy Consumption
 • Water Usage
@@ -127,12 +178,12 @@ Alerts are stored for monitoring and analysis.
 Frontend Layer
 React + Tailwind Dashboard
 
-⬇
+↓
 
 Backend API Layer
 Node.js + Express REST APIs
 
-⬇
+↓
 
 AI Intelligence Layer
 Intent Detection Engine
@@ -140,7 +191,7 @@ Decision Intelligence Engine
 Root Cause Analysis
 Suggestion Engine
 
-⬇
+↓
 
 Database
 MongoDB
@@ -184,20 +235,23 @@ PDFKit
 📂 Project Structure
 
 SustainOS-AI
+
 │
 ├ client
-│   ├ components
-│   ├ pages
-│   ├ routes
-│   └ context
+│ ├ components
+│ ├ pages
+│ ├ routes
+│ └ context
 │
 ├ backend
-│   ├ controllers
-│   ├ routes
-│   ├ services
-│   ├ models
-│   ├ middleware
-│   └ ai
+│ ├ controllers
+│ ├ routes
+│ ├ services
+│ ├ models
+│ ├ middleware
+│ └ ai
+│
+├ screenshots
 │
 ├ analytics
 ├ reports
@@ -210,6 +264,7 @@ SustainOS-AI
 1️⃣ Clone Repository
 
 git clone https://github.com/gauravgautam2003/SustaionOS-open-source-sustainability-monitoring-action-app.git
+
 cd SustainOS-AI
 
 ---
@@ -293,7 +348,7 @@ Key innovation areas:
 
 This project was developed by Team ByteCoder during a hackathon.
 
-Team Members:
+Team Members
 
 • Gautam Sagar
 • Gaurav Gautam
@@ -320,4 +375,6 @@ Your support helps us build better AI-powered sustainability solutions.
 
 ---
 
-💡 SustainOS AI — Building a smarter and greener future with Artificial Intelligence.
+💡 SustainOS AI
+
+Building a smarter and greener future with Artificial Intelligence.
