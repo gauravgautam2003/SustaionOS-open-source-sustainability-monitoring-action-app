@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import Card from "../components/ui/Card";
 import { ThemeContext } from "../context/ThemeContext";
 
@@ -6,277 +6,266 @@ const Settings = () => {
 
 const { darkMode, setDarkMode } = useContext(ThemeContext);
 
-const [notifications,setNotifications]=useState(true);
-const [aiSuggestions,setAiSuggestions]=useState(true);
-const [predictions,setPredictions]=useState(true);
+const [settings,setSettings]=useState({
+ aiSuggestions:true,
+ predictiveInsights:true,
+ energyLimit:500,
+ waterLimit:200,
+ energyAlerts:true,
+ waterAlerts:true,
+ weeklyReports:false,
+ sustainabilityGoal:20
+});
 
-const [energyLimit,setEnergyLimit]=useState(500);
-const [waterLimit,setWaterLimit]=useState(200);
+const [loading,setLoading]=useState(true);
 
 useEffect(()=>{
 
- const savedEnergy=localStorage.getItem("energyLimit");
- const savedWater=localStorage.getItem("waterLimit");
-
- if(savedEnergy) setEnergyLimit(savedEnergy);
- if(savedWater) setWaterLimit(savedWater);
+fetch("http://localhost:5000/api/settings",{
+ headers:{
+  Authorization:`Bearer ${localStorage.getItem("token")}`
+ }
+})
+.then(res=>res.json())
+.then(data=>{
+ setSettings(data)
+ setDarkMode(data.darkMode)
+ setLoading(false)
+})
 
 },[])
 
-const saveLimits=()=>{
+const saveSettings=async()=>{
 
- localStorage.setItem("energyLimit",energyLimit);
- localStorage.setItem("waterLimit",waterLimit);
+await fetch("http://localhost:5000/api/settings",{
 
- alert("Monitoring limits saved");
+ method:"PUT",
 
-}
+ headers:{
+  "Content-Type":"application/json",
+  Authorization:`Bearer ${localStorage.getItem("token")}`
+ },
 
-const clearChat=()=>{
+ body:JSON.stringify(settings)
 
- localStorage.removeItem("aiChatHistory");
- alert("AI chat history cleared");
+})
 
-}
-
-const exportData=()=>{
-
- alert("Export feature will generate sustainability report");
+alert("Settings updated successfully")
 
 }
 
-return (
+if(loading) return <div className="text-center">Loading Settings...</div>
+
+return(
 
 <div className="space-y-8">
 
 {/* Header */}
 
 <div>
-<h1 className="text-2xl md:text-3xl font-bold">
-Account Settings
+
+<h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+System Settings
 </h1>
 
 <p className="text-gray-600 dark:text-gray-400 mt-1">
-Manage system preferences and sustainability monitoring configuration
+Manage your sustainability platform configuration
 </p>
+
 </div>
 
 
-{/* Profile Section */}
+{/* Profile */}
 
 <Card>
 
 <h3 className="text-lg font-semibold mb-6">
-Profile Information
+Profile Preferences
 </h3>
 
-<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div className="grid md:grid-cols-2 gap-4">
 
 <input
 type="text"
 placeholder="Full Name"
-className="bg-gray-200 dark:bg-gray-900
-border border-gray-300 dark:border-gray-700
-text-gray-900 dark:text-white
-px-4 py-2 rounded-lg text-sm"
+className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 px-4 py-2 rounded-lg"
 />
 
 <input
 type="email"
 placeholder="Email Address"
-className="bg-gray-200 dark:bg-gray-900
-border border-gray-300 dark:border-gray-700
-text-gray-900 dark:text-white
-px-4 py-2 rounded-lg text-sm"
+className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 px-4 py-2 rounded-lg"
 />
-
-</div>
-
-<button className="mt-6 bg-primary text-black px-4 py-2 rounded-lg hover:scale-105 transition">
-Save Profile
-</button>
-
-</Card>
-
-
-{/* Notification Settings */}
-
-<Card>
-
-<h3 className="text-lg font-semibold mb-6">
-Notification Settings
-</h3>
-
-<div className="space-y-6">
-
-<div className="flex items-center justify-between">
-
-<span>Email Notifications</span>
-
-<button
-onClick={()=>setNotifications(!notifications)}
-className={`w-12 h-6 flex items-center rounded-full p-1 transition ${
-notifications ? "bg-primary":"bg-gray-400"
-}`}
->
-
-<div
-className={`bg-white w-4 h-4 rounded-full transform transition ${
-notifications ? "translate-x-6":"translate-x-0"
-}`}
-/>
-
-</button>
-
-</div>
 
 </div>
 
 </Card>
 
 
-{/* AI Assistant Settings */}
+{/* AI System */}
 
 <Card>
 
 <h3 className="text-lg font-semibold mb-6">
-AI Assistant Settings
+AI Intelligence System
 </h3>
 
-<div className="space-y-6">
+<div className="space-y-4">
 
-<div className="flex items-center justify-between">
+<label className="flex justify-between">
 
-<span>Enable AI Suggestions</span>
+Enable AI Suggestions
 
-<button
-onClick={()=>setAiSuggestions(!aiSuggestions)}
-className={`w-12 h-6 flex items-center rounded-full p-1 transition ${
-aiSuggestions ? "bg-primary":"bg-gray-400"
-}`}
->
-
-<div
-className={`bg-white w-4 h-4 rounded-full transform transition ${
-aiSuggestions ? "translate-x-6":"translate-x-0"
-}`}
+<input
+type="checkbox"
+checked={settings.aiSuggestions}
+onChange={(e)=>setSettings({...settings,aiSuggestions:e.target.checked})}
 />
 
-</button>
+</label>
 
-</div>
+<label className="flex justify-between">
 
+Predictive Analytics
 
-<div className="flex items-center justify-between">
-
-<span>Enable Predictive Insights</span>
-
-<button
-onClick={()=>setPredictions(!predictions)}
-className={`w-12 h-6 flex items-center rounded-full p-1 transition ${
-predictions ? "bg-primary":"bg-gray-400"
-}`}
->
-
-<div
-className={`bg-white w-4 h-4 rounded-full transform transition ${
-predictions ? "translate-x-6":"translate-x-0"
-}`}
+<input
+type="checkbox"
+checked={settings.predictiveInsights}
+onChange={(e)=>setSettings({...settings,predictiveInsights:e.target.checked})}
 />
 
-</button>
-
-</div>
+</label>
 
 </div>
 
 </Card>
 
 
-{/* Monitoring Limits */}
+{/* Sustainability Goals */}
 
 <Card>
 
 <h3 className="text-lg font-semibold mb-6">
-Resource Monitoring Limits
+Sustainability Goals
 </h3>
-
-<div className="grid md:grid-cols-2 gap-6">
-
-<div>
-
-<p className="text-sm mb-1">
-Energy Alert Threshold (kWh)
-</p>
 
 <input
 type="number"
-value={energyLimit}
-onChange={(e)=>setEnergyLimit(e.target.value)}
-className="w-full bg-gray-200 dark:bg-gray-900
-border border-gray-300 dark:border-gray-700
-px-4 py-2 rounded-lg"
+value={settings.sustainabilityGoal}
+onChange={(e)=>setSettings({...settings,sustainabilityGoal:e.target.value})}
+className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 px-4 py-2 rounded-lg"
 />
 
-</div>
-
-<div>
-
-<p className="text-sm mb-1">
-Water Usage Limit (Liters)
+<p className="text-sm text-gray-500 mt-2">
+Target percentage reduction in energy consumption
 </p>
-
-<input
-type="number"
-value={waterLimit}
-onChange={(e)=>setWaterLimit(e.target.value)}
-className="w-full bg-gray-200 dark:bg-gray-900
-border border-gray-300 dark:border-gray-700
-px-4 py-2 rounded-lg"
-/>
-
-</div>
-
-</div>
-
-<button
-onClick={saveLimits}
-className="mt-6 bg-primary text-black px-4 py-2 rounded-lg hover:scale-105 transition"
->
-
-Save Limits
-
-</button>
 
 </Card>
 
 
-{/* Dashboard Preferences */}
+{/* Monitoring Threshold */}
 
 <Card>
 
 <h3 className="text-lg font-semibold mb-6">
-Dashboard Preferences
+Monitoring Thresholds
 </h3>
 
-<div className="flex items-center justify-between">
+<div className="grid md:grid-cols-2 gap-4">
 
-<span>Dark Mode</span>
-
-<button
-onClick={()=>setDarkMode(!darkMode)}
-className={`w-12 h-6 flex items-center rounded-full p-1 transition ${
-darkMode ? "bg-primary":"bg-gray-400"
-}`}
->
-
-<div
-className={`bg-white w-4 h-4 rounded-full transform transition ${
-darkMode ? "translate-x-6":"translate-x-0"
-}`}
+<input
+type="number"
+value={settings.energyLimit}
+onChange={(e)=>setSettings({...settings,energyLimit:e.target.value})}
+className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 px-4 py-2 rounded-lg"
 />
 
-</button>
+<input
+type="number"
+value={settings.waterLimit}
+onChange={(e)=>setSettings({...settings,waterLimit:e.target.value})}
+className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 px-4 py-2 rounded-lg"
+/>
+
+</div>
+
+</Card>
+
+
+{/* Notifications */}
+
+<Card>
+
+<h3 className="text-lg font-semibold mb-6">
+Alert Notifications
+</h3>
+
+<div className="space-y-4">
+
+<label className="flex justify-between">
+
+Energy Alerts
+
+<input
+type="checkbox"
+checked={settings.energyAlerts}
+onChange={(e)=>setSettings({...settings,energyAlerts:e.target.checked})}
+/>
+
+</label>
+
+<label className="flex justify-between">
+
+Water Leakage Alerts
+
+<input
+type="checkbox"
+checked={settings.waterAlerts}
+onChange={(e)=>setSettings({...settings,waterAlerts:e.target.checked})}
+/>
+
+</label>
+
+<label className="flex justify-between">
+
+Weekly Sustainability Reports
+
+<input
+type="checkbox"
+checked={settings.weeklyReports}
+onChange={(e)=>setSettings({...settings,weeklyReports:e.target.checked})}
+/>
+
+</label>
+
+</div>
+
+</Card>
+
+
+{/* Theme */}
+
+<Card>
+
+<h3 className="text-lg font-semibold mb-6">
+Theme Preferences
+</h3>
+
+<div className="flex justify-between">
+
+Dark Mode
+
+<input
+type="checkbox"
+checked={darkMode}
+onChange={(e)=>{
+
+ setDarkMode(e.target.checked)
+
+ setSettings({...settings,darkMode:e.target.checked})
+
+}}
+/>
 
 </div>
 
@@ -291,24 +280,14 @@ darkMode ? "translate-x-6":"translate-x-0"
 Data Management
 </h3>
 
-<div className="flex gap-4 flex-wrap">
+<div className="flex gap-4">
 
-<button
-onClick={exportData}
-className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:scale-105 transition"
->
-
-Export System Data
-
+<button className="bg-blue-500 text-white px-4 py-2 rounded-lg">
+Export Data
 </button>
 
-<button
-onClick={clearChat}
-className="bg-yellow-500 text-black px-4 py-2 rounded-lg hover:scale-105 transition"
->
-
-Clear AI Chat History
-
+<button className="bg-yellow-500 text-black px-4 py-2 rounded-lg">
+Clear AI Chat
 </button>
 
 </div>
@@ -318,22 +297,32 @@ Clear AI Chat History
 
 {/* Danger Zone */}
 
-<Card className="border border-red-400/40">
+<Card className="border border-red-400">
 
-<h3 className="text-lg font-semibold text-red-500 mb-4">
+<h3 className="text-lg text-red-500 font-semibold mb-4">
 Danger Zone
 </h3>
 
-<button className="bg-red-500 text-white px-4 py-2 rounded-lg hover:scale-105 transition">
+<button className="bg-red-500 text-white px-4 py-2 rounded-lg">
 Delete Account
 </button>
 
 </Card>
 
+
+<button
+onClick={saveSettings}
+className="bg-primary text-black px-6 py-2 rounded-lg hover:scale-105 transition"
+>
+
+Save All Settings
+
+</button>
+
 </div>
 
-);
+)
 
-};
+}
 
-export default Settings;
+export default Settings
