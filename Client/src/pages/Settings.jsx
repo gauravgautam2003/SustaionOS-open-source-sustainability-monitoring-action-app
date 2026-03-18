@@ -2,79 +2,115 @@ import React, { useState, useEffect, useContext } from "react";
 import { ThemeContext } from "../context/ThemeContext";
 import { Save, User, Shield, Bell, Zap, Trash2 } from "lucide-react";
 
+const API = "/api/settings"; // proxy use kar raha hai
+
 const Settings = () => {
   const { darkMode, setDarkMode } = useContext(ThemeContext);
 
-  const [settings, setSettings] = useState({
-    name: "",
-    email: "",
-    aiSuggestions: true,
-    predictiveInsights: true,
-    energyLimit: 500,
-    waterLimit: 200,
-    energyAlerts: true,
-    waterAlerts: true,
-    weeklyReports: false,
-    sustainabilityGoal: 20,
-    darkMode: false,
-  });
-
+  const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
 
+  // 🔥 FETCH SETTINGS
   useEffect(() => {
-    fetch("http://localhost:5000/api/settings", {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        setSettings(data);
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch(API, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        });
+
+        const data = await res.json();
+
+        setSettings({
+          name: data.name || "",
+          email: data.email || "",
+          aiSuggestions: data.aiSuggestions ?? true,
+          predictiveInsights: data.predictiveInsights ?? true,
+          energyLimit: data.energyLimit ?? 500,
+          waterLimit: data.waterLimit ?? 200,
+          energyAlerts: data.energyAlerts ?? true,
+          waterAlerts: data.waterAlerts ?? true,
+          weeklyReports: data.weeklyReports ?? false,
+          sustainabilityGoal: data.sustainabilityGoal ?? 20,
+          darkMode: data.darkMode ?? false,
+        });
+
         setDarkMode(data.darkMode);
+      } catch (err) {
+        console.error(err);
+        setMsg("❌ Failed to load settings");
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+
+    fetchSettings();
   }, []);
 
+  // 🔄 HANDLE CHANGE
   const handleChange = (key, value) => {
-    setSettings({ ...settings, [key]: value });
+    setSettings((prev) => ({ ...prev, [key]: value }));
   };
 
+  // 💾 SAVE SETTINGS
   const saveSettings = async () => {
-    await fetch("http://localhost:5000/api/settings", {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-      body: JSON.stringify(settings),
-    });
+    setSaving(true);
+    setMsg("");
 
-    alert("✅ Settings Saved");
+    try {
+      const res = await fetch(API, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify(settings),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.msg || "Error saving");
+
+      setMsg("✅ Settings saved successfully");
+    } catch (err) {
+      setMsg("❌ Failed to save settings");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  if (loading) return <div className="text-center mt-10">Loading...</div>;
+  // ❌ LOADING UI
+  if (loading)
+    return (
+      <div className="text-center mt-10 text-lg animate-pulse">
+        Loading Settings...
+      </div>
+    );
 
-  const cardStyle = `p-6 rounded-2xl shadow-md transition ${
+  const cardStyle = `p-6 rounded-2xl shadow-md ${
     darkMode
       ? "bg-gray-900 text-white border border-gray-700"
       : "bg-white text-black border border-gray-200"
   }`;
 
-  const inputStyle = `w-full p-3 rounded-lg outline-none ${
+  const inputStyle = `w-full p-3 rounded-lg ${
     darkMode
-      ? "bg-gray-800 text-white border border-gray-700"
+      ? "bg-gray-800 border border-gray-700"
       : "bg-gray-100 border border-gray-300"
   }`;
 
   const toggle = (value, onChange) => (
     <div
       onClick={() => onChange(!value)}
-      className={`w-12 h-6 flex items-center rounded-full p-1 cursor-pointer transition ${
+      className={`w-12 h-6 flex items-center rounded-full p-1 cursor-pointer ${
         value ? "bg-green-500" : "bg-gray-400"
       }`}
     >
       <div
-        className={`w-4 h-4 bg-white rounded-full transform transition ${
+        className={`w-4 h-4 bg-white rounded-full transition ${
           value ? "translate-x-6" : ""
         }`}
       />
@@ -87,9 +123,7 @@ const Settings = () => {
       {/* HEADER */}
       <div>
         <h1 className="text-3xl font-bold">⚙️ Settings</h1>
-        <p className="text-gray-500 dark:text-gray-400">
-          Manage your account and sustainability preferences
-        </p>
+        <p className="text-gray-500">Manage your preferences</p>
       </div>
 
       {/* PROFILE */}
@@ -100,16 +134,16 @@ const Settings = () => {
 
         <div className="grid md:grid-cols-2 gap-4">
           <input
-            placeholder="Full Name"
             value={settings.name}
             onChange={(e) => handleChange("name", e.target.value)}
             className={inputStyle}
+            placeholder="Full Name"
           />
           <input
-            placeholder="Email"
             value={settings.email}
             onChange={(e) => handleChange("email", e.target.value)}
             className={inputStyle}
+            placeholder="Email"
           />
         </div>
       </div>
@@ -120,72 +154,44 @@ const Settings = () => {
           <Zap size={18} /> AI System
         </h2>
 
-        <div className="space-y-4">
-          <div className="flex justify-between">
-            <span>AI Suggestions</span>
-            {toggle(settings.aiSuggestions, (v) =>
-              handleChange("aiSuggestions", v)
-            )}
-          </div>
+        <div className="flex justify-between">
+          AI Suggestions
+          {toggle(settings.aiSuggestions, (v) =>
+            handleChange("aiSuggestions", v)
+          )}
+        </div>
 
-          <div className="flex justify-between">
-            <span>Predictive Insights</span>
-            {toggle(settings.predictiveInsights, (v) =>
-              handleChange("predictiveInsights", v)
-            )}
-          </div>
+        <div className="flex justify-between mt-3">
+          Predictive Insights
+          {toggle(settings.predictiveInsights, (v) =>
+            handleChange("predictiveInsights", v)
+          )}
         </div>
       </div>
 
-      {/* THRESHOLDS */}
+      {/* LIMITS */}
       <div className={cardStyle}>
-        <h2 className="text-xl font-semibold mb-4">📊 Monitoring Limits</h2>
+        <h2 className="text-xl font-semibold mb-4">📊 Limits</h2>
 
         <div className="grid md:grid-cols-2 gap-4">
           <input
             type="number"
             value={settings.energyLimit}
-            onChange={(e) => handleChange("energyLimit", e.target.value)}
+            onChange={(e) =>
+              handleChange("energyLimit", Number(e.target.value))
+            }
             className={inputStyle}
             placeholder="Energy Limit"
           />
           <input
             type="number"
             value={settings.waterLimit}
-            onChange={(e) => handleChange("waterLimit", e.target.value)}
+            onChange={(e) =>
+              handleChange("waterLimit", Number(e.target.value))
+            }
             className={inputStyle}
             placeholder="Water Limit"
           />
-        </div>
-      </div>
-
-      {/* NOTIFICATIONS */}
-      <div className={cardStyle}>
-        <h2 className="flex items-center gap-2 text-xl font-semibold mb-4">
-          <Bell size={18} /> Notifications
-        </h2>
-
-        <div className="space-y-4">
-          <div className="flex justify-between">
-            Energy Alerts
-            {toggle(settings.energyAlerts, (v) =>
-              handleChange("energyAlerts", v)
-            )}
-          </div>
-
-          <div className="flex justify-between">
-            Water Alerts
-            {toggle(settings.waterAlerts, (v) =>
-              handleChange("waterAlerts", v)
-            )}
-          </div>
-
-          <div className="flex justify-between">
-            Weekly Reports
-            {toggle(settings.weeklyReports, (v) =>
-              handleChange("weeklyReports", v)
-            )}
-          </div>
         </div>
       </div>
 
@@ -204,25 +210,16 @@ const Settings = () => {
         </div>
       </div>
 
-      {/* DANGER */}
-      <div className="p-6 rounded-2xl border border-red-500 bg-red-50 dark:bg-red-900/20">
-        <h2 className="flex items-center gap-2 text-red-500 text-lg font-semibold mb-3">
-          <Trash2 size={18} /> Danger Zone
-        </h2>
-
-        <button className="bg-red-500 text-white px-4 py-2 rounded-lg">
-          Delete Account
-        </button>
-      </div>
-
-      {/* SAVE BUTTON */}
+      {/* SAVE */}
       <button
         onClick={saveSettings}
-        className="flex items-center gap-2 bg-primary px-6 py-3 rounded-xl font-semibold hover:scale-105 transition"
+        disabled={saving}
+        className="bg-primary px-6 py-3 rounded-xl font-semibold hover:scale-105 transition"
       >
-        <Save size={16} />
-        Save Changes
+        {saving ? "Saving..." : "Save Changes"}
       </button>
+
+      {msg && <p className="text-center mt-2">{msg}</p>}
     </div>
   );
 };

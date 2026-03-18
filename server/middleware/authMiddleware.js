@@ -2,31 +2,22 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
 module.exports = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith("Bearer ")) {
+      return res.status(401).json({ msg: "No token provided" });
+    }
 
- try {
+    const token = authHeader.split(" ")[1];
 
-  const authHeader = req.headers.authorization;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "sustaios_secret_key");
 
-  if (!authHeader)
-   return res.status(401).json({ msg: "No token provided" });
+    const user = await User.findById(decoded.id || decoded._id).select("-password");
+    if (!user) return res.status(401).json({ msg: "Invalid token user" });
 
-  const token = authHeader.split(" ")[1];
-
-  const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-  const user = await User.findById(decoded.id).select("-password");
-
-  if (!user)
-   return res.status(401).json({ msg: "Invalid token user" });
-
-  req.user = user;
-
-  next();
-
- } catch (err) {
-
-  return res.status(401).json({ msg: "Token invalid or expired" });
-
- }
-
+    req.user = user;
+    next();
+  } catch (err) {
+    return res.status(401).json({ msg: "Token invalid or expired" });
+  }
 };

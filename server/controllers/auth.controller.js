@@ -4,23 +4,21 @@ const jwt = require("jsonwebtoken");
 const JWT_SECRET = process.env.JWT_SECRET || "sustaios_secret_key";
 
 /*
-Generate JWT Token
+🔐 Generate JWT Token (FIXED)
 */
 const generateToken = (userId) => {
   return jwt.sign(
-    { id: userId },
+    { _id: userId }, // ✅ FIXED (important)
     JWT_SECRET,
     { expiresIn: "7d" }
   );
 };
 
-
 /*
-REGISTER USER
+🟢 REGISTER USER
 */
 exports.register = async (req, res, next) => {
   try {
-
     const { name, email, password } = req.body;
 
     if (!name || !email || !password) {
@@ -29,7 +27,6 @@ exports.register = async (req, res, next) => {
 
     // check existing user
     const existing = await User.findOne({ email });
-
     if (existing) {
       return res.status(400).json({ msg: "User already exists" });
     }
@@ -38,7 +35,7 @@ exports.register = async (req, res, next) => {
     const user = await User.create({
       name,
       email,
-      password
+      password,
     });
 
     const token = generateToken(user._id);
@@ -47,26 +44,21 @@ exports.register = async (req, res, next) => {
       success: true,
       token,
       user: {
-        id: user._id,
+        _id: user._id, // ✅ FIXED
         name: user.name,
         email: user.email,
-        notifications: user.notifications,
-        theme: user.theme
-      }
+      },
     });
-
   } catch (err) {
     next(err);
   }
 };
 
-
 /*
-LOGIN USER
+🟢 LOGIN USER
 */
 exports.login = async (req, res, next) => {
   try {
-
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -91,14 +83,11 @@ exports.login = async (req, res, next) => {
       success: true,
       token,
       user: {
-        id: user._id,
+        _id: user._id, // ✅ FIXED
         name: user.name,
         email: user.email,
-        notifications: user.notifications,
-        theme: user.theme
-      }
+      },
     });
-
   } catch (err) {
     next(err);
   }

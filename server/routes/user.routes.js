@@ -1,7 +1,7 @@
 // routes/user.routes.js
 const express = require("express");
 const router = express.Router();
-const { getUserStats, updateProfile } = require("../controllers/userController");
+const { getUserStats, updateProfile } = require("../controllers/user.Controller.js");
 const authMiddleware = require("../middleware/authMiddleware"); // JWT check
 
 // 🔒 All routes require user to be authenticated
