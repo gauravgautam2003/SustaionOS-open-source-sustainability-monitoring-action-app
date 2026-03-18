@@ -1,189 +1,207 @@
-import React, { useState, useContext } from "react";
+// src/pages/Profile.jsx
+import React, { useState, useEffect, useContext } from "react";
+import Card from "../components/ui/Card";
 import { AuthContext } from "../context/AuthContext";
-import { User, Building, Droplet, Zap } from "lucide-react";
+import { ThemeContext } from "../context/ThemeContext";
+import SustainabilityGauge from "../components/dashboard/SustainabilityGauge";
+import { useNavigate } from "react-router-dom";
+import toast, { Toaster } from 'react-hot-toast';
 
 const Profile = () => {
-  const { user } = useContext(AuthContext);
+  const { user, setUser } = useContext(AuthContext);
+  const { darkMode } = useContext(ThemeContext);
+  const navigate = useNavigate();
 
-  const [form, setForm] = useState({
-    building: "",
-    water: "",
-    energy: "",
-  });
-
+  const [form, setForm] = useState({ building: "", water: "", energy: "" });
+  const [profileForm, setProfileForm] = useState({ name: user?.name || "", building: user?.building || "" });
   const [loading, setLoading] = useState(false);
-  const [msg, setMsg] = useState("");
+  const [stats, setStats] = useState({ totalEnergy: 0, totalWater: 0, score: 0, avgEnergy: 0, avgWater: 0 });
+  const [history, setHistory] = useState([]);
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
+  // Fetch user stats & history
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [statsRes, historyRes] = await Promise.all([
+          fetch("http://localhost:5000/api/user/stats", {
+            headers: { Authorization: `Bearer ${user?.token}` },
+          }),
+          fetch("http://localhost:5000/api/data/history", {
+            headers: { Authorization: `Bearer ${user?.token}` },
+          }),
+        ]);
 
-  const validate = () => {
-    if (!form.building || !form.water || !form.energy) {
-      return "All fields are required";
-    }
-    if (Number(form.water) < 0 || Number(form.energy) < 0) {
-      return "Values must be positive";
-    }
-    return null;
-  };
+        const statsJson = await statsRes.json();
+        const historyJson = await historyRes.json();
+
+        const avgEnergy = historyJson.length ? Math.round(historyJson.reduce((a,b)=>a+b.energy,0)/historyJson.length) : 0;
+        const avgWater = historyJson.length ? Math.round(historyJson.reduce((a,b)=>a+b.water,0)/historyJson.length) : 0;
+
+        setStats({ ...statsJson, avgEnergy, avgWater });
+        setHistory(historyJson.slice(0, 5)); // last 5 entries
+      } catch (err) {
+        console.error("Error fetching profile data:", err);
+        toast.error("Error loading profile data");
+      }
+    };
+    fetchData();
+  }, [user]);
+
+  // Handlers
+  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const handleProfileChange = (e) => setProfileForm({ ...profileForm, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    const error = validate();
-    if (error) {
-      setMsg("❌ " + error);
-      return;
-    }
+    if (!form.building || form.water < 0 || form.energy < 0) return toast.error("Invalid input");
 
     setLoading(true);
-    setMsg("");
-
     try {
       const res = await fetch("http://localhost:5000/api/data", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: user?.token ? `Bearer ${user.token}` : "",
-        },
-        body: JSON.stringify({
-          ...form,
-          water: Number(form.water),
-          energy: Number(form.energy),
-        }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${user?.token}` },
+        body: JSON.stringify({ ...form, water: Number(form.water), energy: Number(form.energy) }),
       });
-
       const data = await res.json();
-
-      if (!res.ok) {
-        setMsg("❌ " + (data.msg || data.error || "Error"));
-      } else {
-        setMsg("✅ Data submitted successfully");
+      if (!res.ok) toast.error(data.msg || "Error submitting data");
+      else {
+        toast.success("Data submitted successfully");
         setForm({ building: "", water: "", energy: "" });
+        setStats(prev => ({
+          ...prev,
+          totalEnergy: prev.totalEnergy + Number(form.energy),
+          totalWater: prev.totalWater + Number(form.water),
+          score: Math.min(100, prev.score + 1),
+        }));
+        setHistory(prev => [{ ...form, timestamp: new Date().toISOString() }, ...prev].slice(0,5));
       }
-    } catch (err) {
-      setMsg("❌ Server error");
+    } catch {
+      toast.error("Server error");
     }
+    setLoading(false);
+  };
 
+  const handleProfileUpdate = async (e) => {
+    e.preventDefault();
+    if (!profileForm.name || !profileForm.building) return toast.error("Name and Building required");
+
+    setLoading(true);
+    try {
+      const res = await fetch("http://localhost:5000/api/user/update", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${user?.token}` },
+        body: JSON.stringify(profileForm),
+      });
+      const data = await res.json();
+      if (!res.ok) toast.error(data.msg || "Update failed");
+      else {
+        toast.success("Profile updated successfully");
+        setUser(prev => ({ ...prev, ...profileForm })); // Update context
+      }
+    } catch {
+      toast.error("Server error");
+    }
     setLoading(false);
   };
 
   return (
-    <div className="min-h-screen px-4 py-8 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-950 dark:to-black text-gray-900 dark:text-white">
+    <div className="min-h-screen p-6 bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
+      <Toaster position="top-right" reverseOrder={false} />
+      <div className="max-w-6xl mx-auto space-y-8">
 
-      <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-8">
+        {/* BACK BUTTON */}
+        <button onClick={() => navigate("/")} className="mb-6 px-4 py-2 rounded-lg bg-primary text-black font-semibold hover:bg-green-500 transition">
+          ← Back to Dashboard
+        </button>
 
-        {/* 👤 PROFILE CARD */}
-        <div className="bg-white/70 dark:bg-gray-900/70 backdrop-blur-xl p-6 rounded-3xl shadow-xl border border-gray-200 dark:border-gray-700">
-
-          <div className="flex items-center gap-4 mb-6">
-            <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-black text-xl font-bold shadow-md">
+        {/* USER CARD + SUSTAINABILITY GAUGE */}
+        <div className="grid md:grid-cols-3 gap-6">
+          <Card className={`p-6 flex flex-col items-center ${darkMode ? "bg-gray-900" : "bg-white"}`}>
+            <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center text-black text-3xl font-bold">
               {user?.email?.[0]?.toUpperCase() || "U"}
             </div>
+            <h2 className="text-xl font-bold mt-3">{user?.name || "User Name"}</h2>
+            <p className="text-sm text-gray-400">{user?.email}</p>
+            <p className="text-sm mt-1">Role: <span className="font-semibold">{user?.role || "User"}</span></p>
+            <p className="text-sm mt-1">Building: <span className="font-semibold">{user?.building || "N/A"}</span></p>
+          </Card>
 
-            <div>
-              <h2 className="text-xl font-bold">User Profile</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {user?.email}
-              </p>
+          <Card className="md:col-span-2 p-6">
+            <h3 className="text-lg font-semibold mb-4 dark:text-white">Sustainability Score</h3>
+            <SustainabilityGauge score={stats.score} />
+            <div className="flex justify-around mt-6 text-sm">
+              <div>⚡ Total Energy: {stats.totalEnergy} kWh</div>
+              <div>💧 Total Water: {stats.totalWater} L</div>
+              <div>📊 Avg Energy: {stats.avgEnergy} kWh</div>
+              <div>📊 Avg Water: {stats.avgWater} L</div>
             </div>
-          </div>
-
-          <div className="space-y-3 text-sm">
-            <div className="flex justify-between">
-              <span className="text-gray-500">Status</span>
-              <span className="text-green-500 font-semibold">Active</span>
-            </div>
-
-            <div className="flex justify-between">
-              <span className="text-gray-500">Role</span>
-              <span>User</span>
-            </div>
-
-            <div className="flex justify-between">
-              <span className="text-gray-500">System</span>
-              <span className="text-primary font-semibold">AI Enabled</span>
-            </div>
-          </div>
+          </Card>
         </div>
 
-        {/* 📊 DATA FORM */}
-        <div className="bg-white/70 dark:bg-gray-900/70 backdrop-blur-xl p-6 rounded-3xl shadow-xl border border-gray-200 dark:border-gray-700">
+        {/* PROFILE UPDATE FORM */}
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold mb-4 dark:text-white">📝 Update Profile</h3>
+          <form onSubmit={handleProfileUpdate} className="space-y-4">
+            <input type="text" name="name" placeholder="Name" value={profileForm.name} onChange={handleProfileChange}
+              className="w-full p-3 rounded-lg bg-gray-100 dark:bg-gray-800 text-black dark:text-white outline-none focus:ring-2 focus:ring-primary" />
+            <input type="text" name="building" placeholder="Building" value={profileForm.building} onChange={handleProfileChange}
+              className="w-full p-3 rounded-lg bg-gray-100 dark:bg-gray-800 text-black dark:text-white outline-none focus:ring-2 focus:ring-primary" />
+            <button type="submit" disabled={loading} className="w-full py-3 rounded-lg bg-primary text-black font-semibold hover:scale-105 transition">
+              {loading ? "Updating..." : "Update Profile"}
+            </button>
+          </form>
+        </Card>
 
-          <h2 className="text-xl font-bold mb-5 flex items-center gap-2">
-            <Building size={18} /> Add Resource Data
-          </h2>
-
+        {/* ADD DATA FORM */}
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold mb-4 dark:text-white">📊 Add Resource Data</h3>
           <form onSubmit={handleSubmit} className="space-y-4">
-
-            {/* Building */}
-            <div className="relative">
-              <Building className="absolute left-3 top-3 text-gray-400" size={18} />
-              <input
-                type="text"
-                name="building"
-                placeholder="Building Name"
-                value={form.building}
-                onChange={handleChange}
-                className="w-full pl-10 pr-3 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
-
-            {/* Water */}
-            <div className="relative">
-              <Droplet className="absolute left-3 top-3 text-blue-400" size={18} />
-              <input
-                type="number"
-                name="water"
-                placeholder="Water Usage (liters)"
-                value={form.water}
-                onChange={handleChange}
-                className="w-full pl-10 pr-3 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            {/* Energy */}
-            <div className="relative">
-              <Zap className="absolute left-3 top-3 text-yellow-400" size={18} />
-              <input
-                type="number"
-                name="energy"
-                placeholder="Energy Usage (kWh)"
-                value={form.energy}
-                onChange={handleChange}
-                className="w-full pl-10 pr-3 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 outline-none focus:ring-2 focus:ring-yellow-500"
-              />
-            </div>
-
-            {/* LIVE PREVIEW */}
-            <div className="grid grid-cols-2 gap-4 mt-2">
-              <div className="p-3 rounded-xl bg-blue-100 dark:bg-blue-900/30 text-center">
-                💧 {form.water || 0} L
+            <input type="text" name="building" placeholder="Building Name" value={form.building} onChange={handleChange}
+              className="w-full p-3 rounded-lg bg-gray-100 dark:bg-gray-800 text-black dark:text-white outline-none focus:ring-2 focus:ring-primary" />
+            <input type="number" name="water" placeholder="Water Usage (Liters)" value={form.water} onChange={handleChange}
+              className="w-full p-3 rounded-lg bg-gray-100 dark:bg-gray-800 text-black dark:text-white outline-none focus:ring-2 focus:ring-blue-500" />
+            <input type="number" name="energy" placeholder="Energy Usage (kWh)" value={form.energy} onChange={handleChange}
+              className="w-full p-3 rounded-lg bg-gray-100 dark:bg-gray-800 text-black dark:text-white outline-none focus:ring-2 focus:ring-purple-500" />
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="p-3 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-200">
+                💧 Water: {form.water || 0}
               </div>
-              <div className="p-3 rounded-xl bg-yellow-100 dark:bg-yellow-900/30 text-center">
-                ⚡ {form.energy || 0} kWh
+              <div className="p-3 rounded-lg bg-purple-100 dark:bg-purple-900/30 text-purple-900 dark:text-purple-200">
+                ⚡ Energy: {form.energy || 0}
               </div>
             </div>
-
-            {/* BUTTON */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 rounded-xl bg-primary text-black font-semibold shadow-md hover:scale-105 transition"
-            >
+            <button type="submit" disabled={loading} className="w-full py-3 rounded-lg bg-primary text-black font-semibold hover:scale-105 transition">
               {loading ? "Submitting..." : "Submit Data"}
             </button>
-
-            {/* MESSAGE */}
-            {msg && (
-              <div className="text-center text-sm mt-2 font-medium">
-                {msg}
-              </div>
-            )}
-
           </form>
-        </div>
+        </Card>
+
+        {/* RECENT ACTIVITY */}
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold mb-4 dark:text-white">📜 Recent Activity</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left border-collapse">
+              <thead>
+                <tr className="border-b dark:border-gray-700">
+                  <th className="py-2 px-3">Building</th>
+                  <th className="py-2 px-3">Water (L)</th>
+                  <th className="py-2 px-3">Energy (kWh)</th>
+                  <th className="py-2 px-3">Timestamp</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((item, idx) => (
+                  <tr key={idx} className="border-b dark:border-gray-700">
+                    <td className="py-2 px-3">{item.building}</td>
+                    <td className="py-2 px-3">{item.water}</td>
+                    <td className="py-2 px-3">{item.energy}</td>
+                    <td className="py-2 px-3">{new Date(item.timestamp).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
 
       </div>
     </div>

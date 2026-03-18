@@ -9,7 +9,7 @@
 <h2>Realtime Test Console</h2>
 
 <script>
- const socket = io("http://localhost:5000");
+ const socket = io("http://localhost:5000/api/analytics/summary");
 
  socket.on("connect", () => {
   console.log("✅ Connected:", socket.id);
