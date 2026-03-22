@@ -1,22 +1,22 @@
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
 
-const JWT_SECRET = process.env.JWT_SECRET || "sustaios_secret_key";
+const JWT_SECRET = process.env.JWT_SECRET;
 
-/*
-🔐 Generate JWT Token (FIXED)
-*/
+if (!JWT_SECRET) {
+  throw new Error("JWT_SECRET is missing in environment variables");
+}
+
+// 🔐 Generate JWT Token
 const generateToken = (userId) => {
   return jwt.sign(
-    { _id: userId }, // ✅ FIXED (important)
+    { _id: userId },
     JWT_SECRET,
     { expiresIn: "7d" }
   );
 };
 
-/*
-🟢 REGISTER USER
-*/
+// 🟢 REGISTER
 exports.register = async (req, res, next) => {
   try {
     const { name, email, password } = req.body;
@@ -25,18 +25,12 @@ exports.register = async (req, res, next) => {
       return res.status(400).json({ msg: "All fields required" });
     }
 
-    // check existing user
     const existing = await User.findOne({ email });
     if (existing) {
       return res.status(400).json({ msg: "User already exists" });
     }
 
-    // create user
-    const user = await User.create({
-      name,
-      email,
-      password,
-    });
+    const user = await User.create({ name, email, password });
 
     const token = generateToken(user._id);
 
@@ -44,19 +38,18 @@ exports.register = async (req, res, next) => {
       success: true,
       token,
       user: {
-        _id: user._id, // ✅ FIXED
+        _id: user._id,
         name: user.name,
         email: user.email,
       },
     });
+
   } catch (err) {
     next(err);
   }
 };
 
-/*
-🟢 LOGIN USER
-*/
+// 🟢 LOGIN
 exports.login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
@@ -83,11 +76,12 @@ exports.login = async (req, res, next) => {
       success: true,
       token,
       user: {
-        _id: user._id, // ✅ FIXED
+        _id: user._id,
         name: user.name,
         email: user.email,
       },
     });
+
   } catch (err) {
     next(err);
   }

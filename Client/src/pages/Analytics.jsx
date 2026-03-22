@@ -25,26 +25,25 @@ const Analytics = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // ✅ Backend fetch paths corrected
+        // Summary
         const summaryRes = await fetch("/api/analytics/summary");
         const summaryJson = await summaryRes.json();
         if (!summaryJson.msg) setSummary(summaryJson);
 
+        // Score
         const scoreRes = await fetch("/api/analytics/score");
         const scoreJson = await scoreRes.json();
         setScoreData(scoreJson);
 
+        // Trend
         const trendRes = await fetch("/api/analytics/trend");
         const trendJson = await trendRes.json();
-        setTrendData(
-          trendJson.map((item) => ({
-            month: new Date(item.date).toLocaleString("default", {
-              month: "short",
-            }),
-            energy: item.energy,
-            water: item.water,
-          }))
-        );
+        const formattedTrend = trendJson.map((item) => ({
+          month: new Date(item.date).toLocaleString("default", { month: "short", year: "numeric" }),
+          energy: item.energy,
+          water: item.water,
+        }));
+        setTrendData(formattedTrend);
       } catch (err) {
         console.error("Error fetching analytics data:", err);
       } finally {
@@ -94,35 +93,27 @@ const Analytics = () => {
         </select>
       </div>
 
-      {/* KPI CARDS */}
+      {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="hover:scale-105 transition-transform duration-300">
-          <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
-            Avg Energy Usage
-          </p>
+          <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Avg Energy Usage</p>
           <h2 className="text-2xl font-semibold mt-2">{summary.avgEnergy} kWh</h2>
         </Card>
 
         <Card className="hover:scale-105 transition-transform duration-300">
-          <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
-            Avg Water Usage
-          </p>
+          <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Avg Water Usage</p>
           <h2 className="text-2xl font-semibold mt-2">{summary.avgWater} L</h2>
         </Card>
 
         <Card className="hover:scale-105 transition-transform duration-300">
-          <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
-            Carbon Footprint
-          </p>
+          <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Carbon Footprint</p>
           <h2 className="text-2xl font-semibold mt-2">
             {scoreData.usage?.energy + scoreData.usage?.water} units
           </h2>
         </Card>
 
         <Card className="hover:scale-105 transition-transform duration-300">
-          <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
-            Efficiency Score
-          </p>
+          <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Efficiency Score</p>
           <h2 className="text-2xl font-semibold mt-2 text-green-500">{scoreData.score}%</h2>
           <p className="text-sm mt-1">{scoreData.status}</p>
         </Card>

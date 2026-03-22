@@ -14,7 +14,6 @@ const Profile = () => {
   const { darkMode, setDarkMode } = useContext(ThemeContext);
   const navigate = useNavigate();
 
-  const [token, setToken] = useState(null); // ✅ store token state
   const [form, setForm] = useState({ building: "", water: "", energy: "" });
   const [profileForm, setProfileForm] = useState({ name: "", building: "" });
   const [loading, setLoading] = useState(false);
@@ -28,71 +27,67 @@ const Profile = () => {
   });
   const [history, setHistory] = useState([]);
 
-  // Get token from localStorage on mount
+  // ❌ Fix: only sync profileForm on initial page load
   useEffect(() => {
-    const t = localStorage.getItem("token");
-    setToken(t || null);
-  }, []);
-
-  // Sync profileForm with user
-  useEffect(() => {
-    if (user) {
+    if (user && pageLoading) {
       setProfileForm({
         name: user.name || "",
         building: user.building || "",
       });
     }
-  }, [user]);
+  }, [user, pageLoading]);
 
-  // Fetch profile, stats, history
+  // Fetch stats & history
   useEffect(() => {
     const fetchData = async () => {
-      if (!token) return;
+      if (!user?.token) return;
       try {
         const [profileRes, statsRes, historyRes] = await Promise.all([
           fetch(`${API}/api/user/profile`, {
-            headers: { Authorization: `Bearer ${token}` },
+            headers: { Authorization: `Bearer ${user.token}` },
           }),
           fetch(`${API}/api/user/stats`, {
-            headers: { Authorization: `Bearer ${token}` },
+            headers: { Authorization: `Bearer ${user.token}` },
           }),
           fetch(`${API}/api/data/history`, {
-            headers: { Authorization: `Bearer ${token}` },
+            headers: { Authorization: `Bearer ${user.token}` },
           }),
         ]);
-
-        if (!profileRes.ok) throw new Error("Profile fetch failed");
-        if (!statsRes.ok) throw new Error("Stats fetch failed");
-        if (!historyRes.ok) throw new Error("History fetch failed");
 
         const profileJson = await profileRes.json();
         const statsJson = await statsRes.json();
         const historyJson = await historyRes.json();
 
-        setUser({ ...profileJson, token });
-        setProfileForm({
-          name: profileJson.name || "",
-          building: profileJson.building || "",
-        });
+        if (!profileRes.ok) throw new Error(profileJson.msg || "Profile fetch failed");
+        if (!statsRes.ok) throw new Error(statsJson.msg || "Stats fetch failed");
+        if (!historyRes.ok) throw new Error(historyJson.msg || "History fetch failed");
 
-        const avgEnergy = historyJson.length
-          ? Math.round(historyJson.reduce((a, b) => a + b.energy, 0) / historyJson.length)
+        const updatedUser = { ...profileJson.user, token: user.token };
+        setUser(updatedUser);
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+
+        // Ensure history array
+        const historyArray = Array.isArray(historyJson.history) ? historyJson.history : [];
+
+        const avgEnergy = historyArray.length
+          ? Math.round(historyArray.reduce((a, b) => a + b.energy, 0) / historyArray.length)
           : 0;
-        const avgWater = historyJson.length
-          ? Math.round(historyJson.reduce((a, b) => a + b.water, 0) / historyJson.length)
+        const avgWater = historyArray.length
+          ? Math.round(historyArray.reduce((a, b) => a + b.water, 0) / historyArray.length)
           : 0;
 
         setStats({ ...statsJson, avgEnergy, avgWater });
-        setHistory(historyJson.slice(0, 5));
+        setHistory(historyArray.slice(0, 5));
       } catch (err) {
         console.error(err);
-        toast.error("Error loading profile");
+        toast.error(err.message || "Error loading profile");
+        setHistory([]);
       } finally {
         setPageLoading(false);
       }
     };
     fetchData();
-  }, [token, setUser]);
+  }, [user, setUser]);
 
   // INPUT HANDLERS
   const handleChange = (e) => {
@@ -113,7 +108,7 @@ const Profile = () => {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${user.token}`,
         },
         body: JSON.stringify({ darkMode: newMode }),
       });
@@ -127,12 +122,13 @@ const Profile = () => {
     e.preventDefault();
     if (!form.building) return toast.error("Building required");
     setLoading(true);
+
     try {
       const res = await fetch(`${API}/api/data`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${user.token}`,
         },
         body: JSON.stringify({
           ...form,
@@ -141,7 +137,7 @@ const Profile = () => {
         }),
       });
       const data = await res.json();
-      if (!res.ok) return toast.error(data.msg);
+      if (!res.ok) return toast.error(data.msg || "Submit failed");
       toast.success("Data submitted");
       setForm({ building: "", water: "", energy: "" });
       setHistory((prev) => [
@@ -150,49 +146,48 @@ const Profile = () => {
       ].slice(0, 5));
     } catch {
       toast.error("Server error");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
-  // UPDATE PROFILE ✅ fixed token handling
+  // UPDATE PROFILE
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
-    if (!token) return toast.error("User not logged in");
+    if (!user?.token) return toast.error("User not logged in");
     setLoading(true);
+
     try {
       const res = await fetch(`${API}/api/user/update`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${user.token}`,
         },
         body: JSON.stringify(profileForm),
       });
       const data = await res.json();
-      if (!res.ok) return toast.error(data.msg);
+      if (!res.ok || !data.success) return toast.error(data.msg || "Update failed");
+
+      const updatedUser = { ...data.user, token: user.token };
+      setUser(updatedUser);
+      localStorage.setItem("user", JSON.stringify(updatedUser));
       toast.success("Profile updated successfully");
-      setUser({ ...data.user, token });
-      setProfileForm(data.user);
-      localStorage.setItem("user", JSON.stringify(data.user));
     } catch (err) {
-      console.error(err);
+      console.error("❌ Update failed:", err);
       toast.error("Update failed");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   if (pageLoading)
-    return (
-      <div className="p-10 text-center text-lg animate-pulse">
-        Loading Profile...
-      </div>
-    );
+    return <div className="p-10 text-center text-lg animate-pulse">Loading Profile...</div>;
 
   return (
     <div className="min-h-screen p-6 bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-white">
       <Toaster />
       <div className="max-w-6xl mx-auto space-y-8">
-
         {/* HEADER */}
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold">👤 Profile</h1>
@@ -218,9 +213,7 @@ const Profile = () => {
             {user?.name?.[0]?.toUpperCase() || "U"}
           </div>
           <div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-              {user?.name || "User"}
-            </h2>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">{user?.name || "User"}</h2>
             <p className="text-gray-600 dark:text-gray-400">{user?.email}</p>
             <p className="text-sm mt-1 text-gray-700 dark:text-gray-300">
               Building: <span className="font-semibold">{user?.building || "N/A"}</span>
@@ -293,7 +286,6 @@ const Profile = () => {
             </button>
           </form>
         </Card>
-
       </div>
     </div>
   );

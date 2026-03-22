@@ -1,16 +1,16 @@
-// routes/user.routes.js
 const express = require("express");
 const router = express.Router();
-const { getUserStats, updateProfile } = require("../controllers/user.Controller.js");
-const authMiddleware = require("../middleware/authMiddleware"); // JWT check
+const { getUserStats, updateProfile, getProfile } = require("../controllers/user.Controller.js");
+const authMiddleware = require("../middleware/authMiddleware");
 
-// 🔒 All routes require user to be authenticated
+// 🔒 All routes protected
 router.use(authMiddleware);
 
-// GET user stats
-router.get("/stats", getUserStats);
+// ✅ ADD THIS ROUTE (MAIN FIX)
+router.get("/profile", getProfile);
 
-// PATCH update profile
+// existing routes
+router.get("/stats", getUserStats);
 router.patch("/update", updateProfile);
 
 module.exports = router;
