@@ -53,26 +53,36 @@ const AIChatWidget = () => {
     setLoading(true);
 
     try {
+      const token = localStorage.getItem("token");
 
       const res = await fetch("http://localhost:5000/api/ai/query", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
+        credentials: "include",
         body: JSON.stringify({ question: text })
       });
+
+      if (res.status === 401) {
+        const aiMessage401 = { sender: "ai", text: "Unauthorized — please login to use AI features." };
+        setMessages(prev => [...prev, aiMessage401].slice(-20));
+        return;
+      }
 
       const data = await res.json();
 
       let responseText = "Sorry, I couldn't generate a response.";
 
-      if (data.answer) {
-        responseText = data.answer;
-      }
-      else if (data.suggestions) {
+      if (typeof data === "string") responseText = data;
+      else if (data?.answer) responseText = data.answer;
+      else if (data?.suggestions) {
         responseText = data.suggestions
-          .map(s => `• ${s.title}: ${s.message}`)
+          .map(s => (s.title ? `• ${s.title}: ${s.message}` : `• ${s.message}`))
           .join("\n");
+      } else if (data?.status === "success" && data?.intent) {
+        responseText = data.answer || `Answered intent: ${data.intent}`;
       }
 
       const aiMessage = {
