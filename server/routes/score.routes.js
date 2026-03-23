@@ -1,10 +1,8 @@
-const express=require("express");
-const router=express.Router();
-const engine=require("../services/sustainabilityScore.engine");
+const express = require("express");
+const router = express.Router();
+const { getScore } = require("../controllers/data.controller");
+const auth = require("../middleware/authMiddleware"); // ✅ important
 
-router.get("/",async(req,res)=>{
- const data=await engine.calculateScore();
- res.json(data);
-});
+router.get("/", auth, getScore); // ✅ ONLY THIS
 
-module.exports=router;
+module.exports = router;

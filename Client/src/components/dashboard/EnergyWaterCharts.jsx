@@ -11,19 +11,24 @@ import {
 } from "recharts";
 import { ThemeContext } from "../../context/ThemeContext";
 
-// 🔥 Format backend data → chart friendly
+// ✅ FINAL FIXED FORMAT FUNCTION
 const formatData = (data = []) => {
   return data
-    .slice(0, 7) // last 7 records
-    .reverse()
-    .map((item, index) => ({
-      name: new Date(item.timestamp).toLocaleDateString("en-IN", {
-        day: "numeric",
-        month: "short",
-      }),
-      energy: item.energy,
-      water: item.water,
-    }));
+    .slice(0, 7)
+    .map((item) => {
+      const date = item.createdAt || item.timestamp;
+
+      return {
+        name: new Date(date).toLocaleDateString("en-IN", {
+          day: "numeric",
+          month: "short",
+        }),
+        energy: item.energy,
+        water: item.water,
+        time: new Date(date).getTime(),
+      };
+    })
+    .sort((a, b) => a.time - b.time); // ✅ correct order
 };
 
 const ChartCard = ({ title, dataKey, color, data }) => {
@@ -31,7 +36,6 @@ const ChartCard = ({ title, dataKey, color, data }) => {
 
   return (
     <Card className="h-80 md:h-96 flex flex-col hover:scale-[1.02] transition-all duration-300 shadow-xl border border-gray-200 dark:border-gray-800">
-
       <h3 className="text-lg font-semibold mb-4 dark:text-white flex items-center gap-2">
         <span className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
         {title}
@@ -40,7 +44,6 @@ const ChartCard = ({ title, dataKey, color, data }) => {
       <div className="flex-1">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data}>
-
             <CartesianGrid
               strokeDasharray="3 3"
               stroke={darkMode ? "#374151" : "#E5E7EB"}
@@ -75,7 +78,6 @@ const ChartCard = ({ title, dataKey, color, data }) => {
               activeDot={{ r: 6 }}
               animationDuration={1200}
             />
-
           </LineChart>
         </ResponsiveContainer>
       </div>
@@ -96,7 +98,6 @@ const EnergyWaterCharts = ({ data = [] }) => {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
       <ChartCard
         title="Energy Trend (kWh)"
         dataKey="energy"
@@ -110,7 +111,6 @@ const EnergyWaterCharts = ({ data = [] }) => {
         color="#3B82F6"
         data={formattedData}
       />
-
     </div>
   );
 };

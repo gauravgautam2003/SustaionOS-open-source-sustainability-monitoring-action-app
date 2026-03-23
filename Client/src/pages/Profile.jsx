@@ -28,9 +28,9 @@ const Profile = () => {
   });
   const [history, setHistory] = useState([]);
 
-  // Sync profileForm only on user change (prevent overwrite while typing)
+  // ✅ FIX: prevent overwrite while typing
   useEffect(() => {
-    if (user) {
+    if (user && !profileForm.name && !profileForm.building) {
       setProfileForm({
         name: user.name || "",
         building: user.building || "",
@@ -38,12 +38,13 @@ const Profile = () => {
     }
   }, [user]);
 
-  // Fetch profile, stats, history
+  // Fetch profile, stats, history + ✅ SCORE FIX
   useEffect(() => {
     const fetchData = async () => {
       if (!user?.token) return;
+
       try {
-        const [profileRes, statsRes, historyRes] = await Promise.all([
+        const [profileRes, statsRes, historyRes, scoreRes] = await Promise.all([
           fetch(`${API}/api/user/profile`, {
             headers: { Authorization: `Bearer ${user.token}` },
           }),
@@ -53,11 +54,15 @@ const Profile = () => {
           fetch(`${API}/api/data/history`, {
             headers: { Authorization: `Bearer ${user.token}` },
           }),
+          fetch(`${API}/api/score`, { // ✅ SCORE FIX
+            headers: { Authorization: `Bearer ${user.token}` },
+          }),
         ]);
 
         const profileJson = await profileRes.json();
         const statsJson = await statsRes.json();
         const historyJson = await historyRes.json();
+        const scoreJson = await scoreRes.json();
 
         if (!profileRes.ok) throw new Error(profileJson.msg || "Profile fetch failed");
         if (!statsRes.ok) throw new Error(statsJson.msg || "Stats fetch failed");
@@ -67,16 +72,26 @@ const Profile = () => {
         setUser(updatedUser);
         localStorage.setItem("user", JSON.stringify(updatedUser));
 
-        const historyArray = Array.isArray(historyJson.history) ? historyJson.history : [];
+        const historyArray = Array.isArray(historyJson)
+          ? historyJson
+          : historyJson.history || [];
 
         const avgEnergy = historyArray.length
           ? Math.round(historyArray.reduce((a, b) => a + b.energy, 0) / historyArray.length)
           : 0;
+
         const avgWater = historyArray.length
           ? Math.round(historyArray.reduce((a, b) => a + b.water, 0) / historyArray.length)
           : 0;
 
-        setStats({ ...statsJson, avgEnergy, avgWater });
+        // ✅ FINAL SCORE FIX
+        setStats({
+          ...statsJson,
+          score: scoreJson.score || 0,
+          avgEnergy,
+          avgWater,
+        });
+
         setHistory(historyArray.slice(0, 5));
       } catch (err) {
         console.error(err);
@@ -88,13 +103,14 @@ const Profile = () => {
     };
 
     fetchData();
-  }, [user, setUser]);
+  }, [user?.token]); // ✅ FIXED dependency (IMPORTANT)
 
   // INPUT HANDLERS
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
+
   const handleProfileChange = (e) => {
     const { name, value } = e.target;
     setProfileForm((prev) => ({ ...prev, [name]: value }));
@@ -125,7 +141,7 @@ const Profile = () => {
     setLoading(true);
 
     try {
-      const submittedData = { ...form, timestamp: new Date().toISOString() }; // store before reset
+      const submittedData = { ...form, timestamp: new Date().toISOString() };
 
       const res = await fetch(`${API}/api/data`, {
         method: "POST",
@@ -139,13 +155,14 @@ const Profile = () => {
           energy: Number(form.energy),
         }),
       });
+
       const data = await res.json();
       if (!res.ok) return toast.error(data.msg || "Submit failed");
 
       toast.success("Data submitted");
 
       setHistory((prev) => [submittedData, ...prev].slice(0, 5));
-      setForm({ building: "", water: "", energy: "" }); // reset after history update
+      setForm({ building: "", water: "", energy: "" });
     } catch {
       toast.error("Server error");
     } finally {
@@ -168,12 +185,14 @@ const Profile = () => {
         },
         body: JSON.stringify(profileForm),
       });
+
       const data = await res.json();
       if (!res.ok || !data.success) return toast.error(data.msg || "Update failed");
 
       const updatedUser = { ...data.user, token: user.token };
       setUser(updatedUser);
       localStorage.setItem("user", JSON.stringify(updatedUser));
+
       toast.success("Profile updated successfully");
     } catch (err) {
       console.error("❌ Update failed:", err);
@@ -189,10 +208,13 @@ const Profile = () => {
   return (
     <div className="min-h-screen p-6 bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-white">
       <Toaster />
+
       <div className="max-w-6xl mx-auto space-y-8">
+
         {/* HEADER */}
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold">👤 Profile</h1>
+
           <div className="flex items-center gap-3">
             <button
               onClick={toggleTheme}
@@ -200,6 +222,7 @@ const Profile = () => {
             >
               {darkMode ? <Sun size={18} /> : <Moon size={18} />}
             </button>
+
             <button
               onClick={() => navigate("/")}
               className="px-4 py-2 bg-primary rounded-lg font-semibold hover:scale-105 transition"
@@ -214,8 +237,11 @@ const Profile = () => {
           <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center text-black text-2xl font-bold shadow-lg">
             {user?.name?.[0]?.toUpperCase() || "U"}
           </div>
+
           <div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">{user?.name || "User"}</h2>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+              {user?.name || "User"}
+            </h2>
             <p className="text-gray-600 dark:text-gray-400">{user?.email}</p>
             <p className="text-sm mt-1 text-gray-700 dark:text-gray-300">
               Building: <span className="font-semibold">{user?.building || "N/A"}</span>
@@ -241,17 +267,19 @@ const Profile = () => {
               name="name"
               value={profileForm.name}
               onChange={handleProfileChange}
-              className="w-full p-3 rounded-lg bg-gray-100 dark:bg-gray-800 text-black dark:text-white border border-gray-300 dark:border-gray-700 outline-none"
+              className="w-full p-3 rounded-lg bg-gray-100 dark:bg-gray-800 border"
               placeholder="Name"
             />
+
             <input
               name="building"
               value={profileForm.building}
               onChange={handleProfileChange}
-              className="w-full p-3 rounded-lg bg-gray-100 dark:bg-gray-800 text-black dark:text-white border border-gray-300 dark:border-gray-700 outline-none"
+              className="w-full p-3 rounded-lg bg-gray-100 dark:bg-gray-800 border"
               placeholder="Building"
             />
-            <button className="w-full py-3 rounded-lg bg-green-500 text-white font-semibold hover:scale-105 transition">
+
+            <button className="w-full py-3 rounded-lg bg-green-500 text-white font-semibold">
               {loading ? "Saving..." : "Update Profile"}
             </button>
           </form>
@@ -260,34 +288,16 @@ const Profile = () => {
         {/* ADD DATA */}
         <Card className="p-6">
           <form onSubmit={handleSubmit} className="space-y-3">
-            <input
-              name="building"
-              value={form.building}
-              onChange={handleChange}
-              className="w-full p-3 rounded-lg bg-gray-100 dark:bg-gray-800 text-black dark:text-white border border-gray-300 dark:border-gray-700"
-              placeholder="Building"
-            />
-            <input
-              name="water"
-              type="number"
-              value={form.water}
-              onChange={handleChange}
-              className="w-full p-3 rounded-lg bg-gray-100 dark:bg-gray-800 text-black dark:text-white border border-gray-300 dark:border-gray-700"
-              placeholder="Water"
-            />
-            <input
-              name="energy"
-              type="number"
-              value={form.energy}
-              onChange={handleChange}
-              className="w-full p-3 rounded-lg bg-gray-100 dark:bg-gray-800 text-black dark:text-white border border-gray-300 dark:border-gray-700"
-              placeholder="Energy"
-            />
-            <button className="w-full py-3 rounded-lg bg-blue-500 text-white font-semibold hover:scale-105 transition">
+            <input name="building" value={form.building} onChange={handleChange} placeholder="Building" className="w-full p-3 border rounded" />
+            <input name="water" type="number" value={form.water} onChange={handleChange} placeholder="Water" className="w-full p-3 border rounded" />
+            <input name="energy" type="number" value={form.energy} onChange={handleChange} placeholder="Energy" className="w-full p-3 border rounded" />
+
+            <button className="w-full py-3 bg-blue-500 text-white rounded">
               {loading ? "Submitting..." : "Submit Data"}
             </button>
           </form>
         </Card>
+
       </div>
     </div>
   );

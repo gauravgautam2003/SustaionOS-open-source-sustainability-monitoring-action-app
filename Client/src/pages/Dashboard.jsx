@@ -59,10 +59,19 @@ const Dashboard = () => {
         ? historyJson
         : historyJson.history || [];
 
-      setHistory(histArray);
-      setLatest(histArray.length ? histArray[0] : null);
-      setScoreData(scoreJson || { score: 0, usage: { water: 0, energy: 0 } });
+      // ✅ SORT FIX (VERY IMPORTANT)
+      const sortedHistory = histArray.sort(
+        (a, b) =>
+          new Date(b.createdAt || b.timestamp) -
+          new Date(a.createdAt || a.timestamp)
+      );
 
+      setHistory(sortedHistory);
+      setLatest(sortedHistory.length ? sortedHistory[0] : null);
+
+      setScoreData(
+        scoreJson || { score: 0, usage: { water: 0, energy: 0 } }
+      );
     } catch (err) {
       console.error("Dashboard error:", err);
       setError("Failed to load dashboard");
@@ -89,9 +98,20 @@ const Dashboard = () => {
 
     // ⚡ REALTIME DATA
     socket.on("newData", async (data) => {
-      setHistory((prev) => [data, ...prev]);
+      setHistory((prev) => {
+        const updated = [data, ...prev];
+
+        // ✅ remove duplicates
+        const unique = Array.from(
+          new Map(updated.map((item) => [item._id, item])).values()
+        );
+
+        return unique.slice(0, 50);
+      });
+
       setLatest(data);
 
+      // 🔥 REFRESH SCORE
       try {
         const user = JSON.parse(localStorage.getItem("user"));
         if (!user?.token) return;
@@ -178,14 +198,14 @@ const Dashboard = () => {
         </div>
         <div className="col-span-12 md:col-span-8">
           <LiveStats
-            water={scoreData?.usage?.water || latest.water}
-            energy={scoreData?.usage?.energy || latest.energy}
+            water={latest.water}
+            energy={latest.energy}
           />
         </div>
       </div>
 
-      {/* CHART */}
-      <EnergyWaterCharts data={[latest, ...history].slice(0, 7)} />
+      {/* ✅ FINAL FIX HERE */}
+      <EnergyWaterCharts data={history.slice(0, 7)} />
 
       {/* ALERTS + SUGGESTIONS */}
       <div className="grid grid-cols-12 gap-6">
