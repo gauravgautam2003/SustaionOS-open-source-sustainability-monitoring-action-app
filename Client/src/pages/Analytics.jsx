@@ -22,7 +22,11 @@ const Analytics = () => {
       : [];
     return arr.map(item => {
       const dateVal = item?.date ?? item?.createdAt ?? item?.timestamp ?? item?.time ?? item?.label ?? null;
-      const parsed = dateVal ? new Date(dateVal) : null;
+      let parsed = null;
+      if (dateVal != null) {
+        if (typeof dateVal === "number") parsed = dateVal < 1e12 ? new Date(dateVal * 1000) : new Date(dateVal);
+        else parsed = new Date(String(dateVal));
+      }
       const label = parsed && !isNaN(parsed.getTime())
         ? parsed.toLocaleDateString("en-IN", { day: "numeric", month: "short" })
         : (item?.label ?? "Unknown");
@@ -39,14 +43,16 @@ const Analytics = () => {
     setLoading(true);
     setError("");
     try {
+      const token = localStorage.getItem("token"); // ensure token set after login
       const doFetch = async (url) => {
-        const res = await fetch(url);
+        const headers = { "Content-Type": "application/json" };
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+        const res = await fetch(url, { method: "GET", headers, credentials: "include" });
         if (!res.ok) throw new Error(`${url} returned ${res.status}`);
         return await res.json();
       };
 
       const summaryJson = await doFetch(`/api/analytics/summary?period=${selectedPeriod}`);
-      // handle various shapes
       setSummary(summaryJson?.summary ?? summaryJson ?? {});
 
       const scoreJson = await doFetch(`/api/analytics/score`);
@@ -57,7 +63,12 @@ const Analytics = () => {
       setTrendData(normalized);
     } catch (err) {
       console.error("Error fetching analytics data:", err);
-      setError("Failed to load analytics. Try refreshing.");
+      if (err.message.includes("401")) {
+        setError("Unauthorized — please login.");
+        // optional redirect: window.location.href = "/login";
+      } else {
+        setError("Failed to load analytics. Try refreshing.");
+      }
       setSummary({});
       setScoreData({});
       setTrendData([]);
@@ -68,6 +79,7 @@ const Analytics = () => {
 
   useEffect(() => {
     fetchAnalytics();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period]);
 
   if (loading) return <div className="text-center text-gray-500 p-10">Loading Analytics...</div>;
