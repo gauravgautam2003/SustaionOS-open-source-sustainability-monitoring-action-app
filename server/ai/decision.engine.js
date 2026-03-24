@@ -2,16 +2,20 @@ const Data = require("../models/Data");
 const Alert = require("../models/Alert");
 const root = require("./rootCause.engine");
 const suggest = require("./suggestion.engine");
+const formatter = require("./response.engine");
+
+// 🔥 NEW ADVANCED AI
+const finalAI = require("./FinalAI.engine");
 
 exports.generateDecision = async (intent, context = {}, userId) => {
   try {
     if (!userId) return "Unauthorized: user context missing.";
 
-    // latest reading for this user
+    // latest reading
     const latest = await Data.findOne({ userId }).sort({ createdAt: -1 });
     if (!latest) return "No telemetry data available yet.";
 
-    // averages (user-specific)
+    // averages
     const avgData = await Data.aggregate([
       { $match: { userId } },
       {
@@ -32,11 +36,35 @@ exports.generateDecision = async (intent, context = {}, userId) => {
     const totalEnergy = avgData[0]?.totalEnergy || 0;
     const count = avgData[0]?.count || 1;
 
-    const lastAlert = await Alert.findOne({ user: userId }).sort({ createdAt: -1 });
+    // ✅ FIXED alert query
+    const lastAlert = await Alert.findOne({ userId }).sort({ createdAt: -1 });
 
-    const percentDiff = (current, avg) => (avg === 0 ? 0 : (((current - avg) / avg) * 100).toFixed(1));
+    const percentDiff = (current, avg) =>
+      avg === 0 ? 0 : (((current - avg) / avg) * 100).toFixed(1);
 
-    // sustainability score (simple local heuristic)
+    // 🔥 TRY ADVANCED AI FIRST (SAFE)
+    try {
+      const history = await Data.find({ userId })
+        .sort({ timestamp: -1 })
+        .limit(10);
+
+      const advanced = await finalAI.generateFinalAnswer({
+        intent,
+        latest,
+        avgWater,
+        avgEnergy,
+        history,
+        userId
+      });
+
+      if (advanced) return advanced;
+
+    } catch (err) {
+      console.log("Advanced AI failed, fallback to default logic");
+    }
+
+    // 🔻 FALLBACK (YOUR ORIGINAL LOGIC SAFE)
+
     let score = 100;
     if (latest.water > avgWater) score -= 15;
     if (latest.energy > avgEnergy) score -= 15;
@@ -89,6 +117,7 @@ exports.generateDecision = async (intent, context = {}, userId) => {
       default:
         return `I can help with: water, energy, alerts, prediction, carbon, cost, score, history. Please ask a related question.`;
     }
+
   } catch (err) {
     console.log("Decision Engine Error:", err);
     return "AI system error while analyzing data.";
