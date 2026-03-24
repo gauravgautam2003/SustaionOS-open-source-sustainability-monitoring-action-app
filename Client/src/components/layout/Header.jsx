@@ -1,16 +1,31 @@
-import React, { useState, useContext, useEffect } from "react";
-import { Menu, Bell, ChevronDown, AlertTriangle, ExternalLink, Sparkles } from "lucide-react";
+import React, { useContext, useEffect, useRef, useState } from "react";
+import { Bell, ChevronDown, ExternalLink, Menu, Sparkles, AlertTriangle } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { ThemeContext } from "../../context/ThemeContext";
 import { AuthContext } from "../../context/AuthContext";
-import { useNavigate } from "react-router-dom";
 import { getAuthToken } from "../../utils/auth";
+import { apiUrl } from "../../utils/api";
 import socket from "../../utils/socket";
 
-const API = "http://localhost:5000";
+const routeLabels = {
+  "/": "Dashboard Overview",
+  "/analytics": "Analytics",
+  "/history": "Usage History",
+  "/reports": "Reports",
+  "/alerts": "Alerts",
+  "/incidents": "Incidents",
+  "/impact": "Impact",
+  "/buildings": "Buildings",
+  "/recommendations": "Recommendations",
+  "/notifications": "Notifications",
+  "/profile": "Profile",
+  "/settings": "Settings",
+};
 
 const Header = ({ setIsOpen }) => {
   const { darkMode, setDarkMode } = useContext(ThemeContext);
   const { user, logout } = useContext(AuthContext);
+  const location = useLocation();
   const navigate = useNavigate();
 
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -18,22 +33,19 @@ const Header = ({ setIsOpen }) => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  const markNotificationRead = async (id) => {
-    try {
-      const token = getAuthToken();
-      if (!token) return;
-      await fetch(`${API}/api/notifications/${id}/read`, {
-        method: "PATCH",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setNotifications((prev) =>
-        prev.map((item) => (item._id === id ? { ...item, read: true } : item))
-      );
-      setUnreadCount((count) => Math.max(0, count - 1));
-    } catch (err) {
-      console.error("Mark notification read failed:", err);
-    }
-  };
+  const headerRef = useRef(null);
+
+  useEffect(() => {
+    const onPointerDown = (event) => {
+      if (!headerRef.current) return;
+      if (headerRef.current.contains(event.target)) return;
+      setUserMenuOpen(false);
+      setAlertMenuOpen(false);
+    };
+
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, []);
 
   useEffect(() => {
     const loadNotifications = async () => {
@@ -41,7 +53,7 @@ const Header = ({ setIsOpen }) => {
       if (!token) return;
 
       try {
-        const res = await fetch(`${API}/api/notifications?limit=6`, {
+        const res = await fetch(apiUrl("/api/notifications?limit=6"), {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -58,6 +70,7 @@ const Header = ({ setIsOpen }) => {
     loadNotifications();
 
     if (!socket.connected) socket.connect();
+
     const onNewNotification = (notification) => {
       if (!notification?._id) return;
       if (String(notification.userId || "") !== String(user?._id || "")) return;
@@ -72,158 +85,226 @@ const Header = ({ setIsOpen }) => {
     };
   }, [user?._id]);
 
+  useEffect(() => {
+    setUserMenuOpen(false);
+    setAlertMenuOpen(false);
+  }, [location.pathname]);
+
+  const markNotificationRead = async (id) => {
+    try {
+      const token = getAuthToken();
+      if (!token) return;
+
+      await fetch(apiUrl(`/api/notifications/${id}/read`), {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      setNotifications((prev) => prev.map((item) => (item._id === id ? { ...item, read: true } : item)));
+      setUnreadCount((count) => Math.max(0, count - 1));
+    } catch (err) {
+      console.error("Mark notification read failed:", err);
+    }
+  };
+
+  const pageTitle = routeLabels[location.pathname] || "SustainOS";
+
   return (
     <header
-      className={`h-16 flex items-center justify-between px-4 md:px-6
-      backdrop-blur-xl bg-white/70 dark:bg-gray-900/70
-      border-b border-white/20 dark:border-gray-700 shadow-md`}
+      ref={headerRef}
+      className="sticky top-0 z-30 border-b border-white/20 dark:border-gray-800 bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl shadow-sm"
     >
-      <div className="flex items-center gap-4">
-        <Menu
-          className={`cursor-pointer lg:hidden ${
-            darkMode ? "text-white" : "text-black"
-          }`}
-          onClick={() => setIsOpen(true)}
-        />
-
-        <h1 className="text-xl font-bold tracking-wide">
-          <span className="text-primary">Sustain</span>OS
-        </h1>
-      </div>
-
-      <div className="flex items-center gap-5 relative">
-        <div className="relative">
+      <div className="mx-auto flex h-16 w-full max-w-[1600px] items-center justify-between gap-3 px-4 md:px-6">
+        <div className="flex min-w-0 items-center gap-3">
           <button
             type="button"
-            onClick={() => setAlertMenuOpen((open) => !open)}
-            className="relative cursor-pointer"
+            onClick={() => setIsOpen(true)}
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white/70 text-gray-700 transition hover:border-primary hover:text-primary dark:border-gray-800 dark:bg-gray-900/70 dark:text-gray-200 lg:hidden"
+            aria-label="Open sidebar"
           >
-            <Bell className="text-gray-600 dark:text-gray-300 hover:text-primary transition" />
-            {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] px-1.5 rounded-full">
-                {unreadCount > 9 ? "9+" : unreadCount}
-              </span>
-            )}
+            <Menu size={20} />
           </button>
 
-          {alertMenuOpen && (
-            <div className="absolute right-0 mt-3 w-80 max-w-[85vw] bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl shadow-xl z-50 overflow-hidden animate-fadeIn">
-              <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
-                <div>
-                  <p className="font-semibold text-sm">Notifications</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {unreadCount} unread
-                  </p>
-                </div>
-                <button
-                  onClick={() => {
-                    navigate("/notifications");
-                    setAlertMenuOpen(false);
-                  }}
-                  className="text-xs inline-flex items-center gap-1 text-primary font-medium"
-                >
-                  View all <ExternalLink size={12} />
-                </button>
-              </div>
-
-              <div className="max-h-80 overflow-y-auto">
-                {notifications.slice(0, 4).length === 0 ? (
-                  <div className="p-4 text-sm text-gray-500 dark:text-gray-400">
-                    No notifications yet.
-                  </div>
-                ) : (
-                  notifications.slice(0, 4).map((item) => (
-                    <button
-                      key={item._id}
-                      onClick={async () => {
-                        await markNotificationRead(item._id);
-                        navigate(item.link || "/alerts");
-                        setAlertMenuOpen(false);
-                      }}
-                      className="w-full text-left px-4 py-3 border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/60 transition"
-                    >
-                      <div className="flex items-start gap-3">
-                        <div
-                          className={`mt-1 ${
-                            item.read ? "text-gray-400" : "text-primary"
-                          }`}
-                        >
-                          {item.type === "SCORE" ? <Sparkles size={16} /> : <AlertTriangle size={16} />}
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="font-medium text-sm">{item.title}</p>
-                            {!item.read && (
-                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500 text-white">
-                                NEW
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                            {item.message}
-                          </p>
-                        </div>
-                      </div>
-                    </button>
-                  ))
-                )}
-              </div>
+          <div className="min-w-0">
+            <div className="flex min-w-0 items-center gap-2">
+              <h1 className="truncate text-lg font-bold tracking-tight text-gray-900 dark:text-white md:text-xl">
+                <span className="text-primary">Sustain</span>OS
+              </h1>
+              <span className="hidden items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-600 sm:inline-flex">
+                <Sparkles size={12} />
+                Live
+              </span>
             </div>
-          )}
+            <p className="hidden truncate text-xs text-gray-500 dark:text-gray-400 md:block">
+              {pageTitle}
+            </p>
+          </div>
         </div>
 
-        <div className="relative">
-          <div
-            onClick={() => setUserMenuOpen(!userMenuOpen)}
-            className="flex items-center gap-2 cursor-pointer px-2 py-1 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 transition"
-          >
-            <div className="w-8 h-8 flex items-center justify-center rounded-full bg-primary text-black font-bold">
-              {user?.name ? user.name[0].toUpperCase() : "U"}
-            </div>
+        <div className="flex items-center gap-2 md:gap-3">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setUserMenuOpen(false);
+                setAlertMenuOpen((open) => !open);
+              }}
+              className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white/70 text-gray-700 transition hover:border-primary hover:text-primary dark:border-gray-800 dark:bg-gray-900/70 dark:text-gray-200"
+              aria-label="Notifications"
+              aria-expanded={alertMenuOpen}
+            >
+              <Bell size={18} />
+              {unreadCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-semibold text-white">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </button>
 
-            <span className="text-sm hidden md:block">{user?.name || "User"}</span>
-            <ChevronDown size={16} />
+            {alertMenuOpen && (
+              <div className="absolute right-0 mt-3 w-80 max-w-[85vw] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-800 dark:bg-gray-950">
+                <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-800">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white">Notifications</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{unreadCount} unread</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigate("/notifications");
+                      setAlertMenuOpen(false);
+                    }}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-primary"
+                  >
+                    View all <ExternalLink size={12} />
+                  </button>
+                </div>
+
+                <div className="max-h-80 overflow-y-auto">
+                  {notifications.slice(0, 4).length === 0 ? (
+                    <div className="p-4 text-sm text-gray-500 dark:text-gray-400">No notifications yet.</div>
+                  ) : (
+                    notifications.slice(0, 4).map((item) => (
+                      <button
+                        key={item._id}
+                        type="button"
+                        onClick={async () => {
+                          await markNotificationRead(item._id);
+                          navigate(item.link || "/alerts");
+                          setAlertMenuOpen(false);
+                        }}
+                        className="w-full border-b border-gray-100 px-4 py-3 text-left transition hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-900"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={`${item.read ? "text-gray-400" : "text-primary"} mt-0.5`}>
+                            {item.type === "SCORE" ? <Sparkles size={16} /> : <AlertTriangle size={16} />}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="truncate text-sm font-medium text-gray-900 dark:text-white">
+                                {item.title}
+                              </p>
+                              {!item.read && (
+                                <span className="whitespace-nowrap rounded-full bg-red-500 px-2 py-0.5 text-[10px] text-white">
+                                  NEW
+                                </span>
+                              )}
+                            </div>
+                            <p className="mt-1 line-clamp-2 text-xs text-gray-500 dark:text-gray-400">
+                              {item.message}
+                            </p>
+                          </div>
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
-          {userMenuOpen && (
-            <div className="absolute right-0 mt-3 w-48 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl shadow-xl z-50 overflow-hidden animate-fadeIn">
-              <button
-                onClick={() => {
-                  navigate("/profile");
-                  setUserMenuOpen(false);
-                }}
-                className="w-full text-left px-4 py-2 hover:bg-gray-200 dark:hover:bg-gray-800 transition"
-              >
-                Profile
-              </button>
+          <button
+            type="button"
+            onClick={() => setDarkMode(!darkMode)}
+            className="hidden h-10 items-center gap-2 rounded-xl border border-gray-200 bg-white/70 px-3 text-sm font-medium text-gray-700 transition hover:border-primary hover:text-primary dark:border-gray-800 dark:bg-gray-900/70 dark:text-gray-200 md:inline-flex"
+            aria-label="Toggle theme"
+          >
+            <span className={`h-5 w-10 rounded-full p-1 transition ${darkMode ? "bg-primary" : "bg-gray-400"}`}>
+              <span
+                className={`block h-3 w-3 rounded-full bg-black transition ${
+                  darkMode ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </span>
+            {darkMode ? "Dark" : "Light"}
+          </button>
 
-              <div className="border-t border-gray-300 dark:border-gray-700" />
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setAlertMenuOpen(false);
+                setUserMenuOpen((open) => !open);
+              }}
+              className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white/70 px-2.5 py-1.5 text-left transition hover:border-primary dark:border-gray-800 dark:bg-gray-900/70"
+              aria-expanded={userMenuOpen}
+            >
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary font-bold text-black">
+                {user?.name ? user.name[0].toUpperCase() : "U"}
+              </div>
+              <div className="hidden min-w-0 md:block">
+                <p className="truncate text-sm font-medium text-gray-900 dark:text-white">
+                  {user?.name || "User"}
+                </p>
+                <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">
+                  {user?.email || "Account"}
+                </p>
+              </div>
+              <ChevronDown size={16} className="text-gray-500 dark:text-gray-400" />
+            </button>
 
-              <button
-                onClick={() => {
-                  logout();
-                  navigate("/login");
-                }}
-                className="w-full text-left px-4 py-2 hover:bg-red-500 hover:text-white transition"
-              >
-                Logout
-              </button>
-            </div>
-          )}
+            {userMenuOpen && (
+              <div className="absolute right-0 mt-3 w-52 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-800 dark:bg-gray-950">
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigate("/profile");
+                    setUserMenuOpen(false);
+                  }}
+                  className="w-full px-4 py-3 text-left text-sm text-gray-700 transition hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-900"
+                >
+                  Profile
+                </button>
+
+                <div className="border-t border-gray-100 dark:border-gray-800" />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDarkMode(!darkMode);
+                    setUserMenuOpen(false);
+                  }}
+                  className="w-full px-4 py-3 text-left text-sm text-gray-700 transition hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-900"
+                >
+                  {darkMode ? "Light mode" : "Dark mode"}
+                </button>
+
+                <div className="border-t border-gray-100 dark:border-gray-800" />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    logout();
+                    navigate("/login");
+                  }}
+                  className="w-full px-4 py-3 text-left text-sm text-red-500 transition hover:bg-red-500 hover:text-white"
+                >
+                  Logout
+                </button>
+              </div>
+            )}
+          </div>
         </div>
-
-        <button
-          onClick={() => setDarkMode(!darkMode)}
-          className={`w-12 h-6 flex items-center rounded-full p-1 transition ${
-            darkMode ? "bg-primary" : "bg-gray-400"
-          }`}
-        >
-          <div
-            className={`bg-black w-4 h-4 rounded-full transform transition ${
-              darkMode ? "translate-x-6" : "translate-x-0"
-            }`}
-          />
-        </button>
       </div>
     </header>
   );

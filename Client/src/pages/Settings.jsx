@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useContext } from "react";
 import { ThemeContext } from "../context/ThemeContext";
 import { Save, User, Shield, Bell, Zap, Trash2 } from "lucide-react";
-
-const API = "/api/settings"; // proxy use kar raha hai
+import { getAuthToken } from "../utils/auth";
+import { apiUrl } from "../utils/api";
 
 const Settings = () => {
   const { darkMode, setDarkMode } = useContext(ThemeContext);
@@ -16,9 +16,10 @@ const Settings = () => {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const res = await fetch(API, {
+        const token = getAuthToken();
+        const res = await fetch(apiUrl("/api/settings"), {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${token}`,
           },
         });
         if (res.status === 401) {
@@ -74,7 +75,7 @@ const Settings = () => {
     }
 
     try {
-      const res = await fetch(API, {
+      const res = await fetch(apiUrl("/api/settings"), {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -106,7 +107,7 @@ const Settings = () => {
     if (!window.confirm("Reset settings to defaults?")) return;
     setSaving(true);
     try {
-      const res = await fetch(API, {
+      const res = await fetch(apiUrl("/api/settings"), {
         method: "DELETE",
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });

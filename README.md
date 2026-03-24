@@ -14,6 +14,8 @@ SustainOS AI is a full-stack sustainability intelligence platform designed to mo
 
 The system combines data analytics, anomaly detection, and AI decision engines to help organizations detect waste, optimize resource usage, and reduce environmental impact.
 
+Core functionality does not depend on any external AI service. If `OPENAI_API_KEY` is configured, the chat assistant uses an optional natural-language enhancement layer. If the key is absent, the local rule-based AI stays fully functional.
+
 This project was developed during a hackathon by Team ByteCoder.
 
 ---
@@ -381,3 +383,18 @@ Your support helps us build better AI-powered sustainability solutions.
 💡 SustainOS AI
 
 Building a smarter and greener future with Artificial Intelligence.
+
+---
+
+Environment notes:
+
+- [server/.env.example](/C:/Users/Dell/OneDrive/Desktop/SustainOS%20Ai/server/.env.example)
+- [Client/.env.example](/C:/Users/Dell/OneDrive/Desktop/SustainOS%20Ai/Client/.env.example)
+- Set `OPENAI_API_KEY` only if you want the optional conversational enhancement
+
+Python ML service:
+
+- Start the local ML server with `python ml_service/server.py`
+- It serves `http://localhost:8000`
+- Forecasting and anomaly detection will use it automatically when available
+- If it is not running, the Node backend falls back to the built-in JS logic

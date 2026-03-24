@@ -2,9 +2,8 @@ import React, { useEffect, useMemo, useState, useContext } from "react";
 import Card from "../components/ui/Card";
 import { ThemeContext } from "../context/ThemeContext";
 import { getAuthToken } from "../utils/auth";
+import { apiUrl } from "../utils/api";
 import { Bell, Sparkles, AlertTriangle, CheckCheck, RotateCcw } from "lucide-react";
-
-const API = "http://localhost:5000";
 
 const Notifications = () => {
   const { darkMode } = useContext(ThemeContext);
@@ -20,7 +19,7 @@ const Notifications = () => {
         return;
       }
 
-      const res = await fetch(`${API}/api/notifications?limit=30`, {
+      const res = await fetch(apiUrl("/api/notifications?limit=30"), {
         headers: { Authorization: `Bearer ${token}` },
       });
       const json = await res.json().catch(() => ({}));
@@ -46,7 +45,7 @@ const Notifications = () => {
     try {
       const token = getAuthToken();
       if (!token) return;
-      const res = await fetch(`${API}/api/notifications/${id}/read`, {
+      const res = await fetch(apiUrl(`/api/notifications/${id}/read`), {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -63,7 +62,7 @@ const Notifications = () => {
     try {
       const token = getAuthToken();
       if (!token) return;
-      const res = await fetch(`${API}/api/notifications/read-all`, {
+      const res = await fetch(apiUrl("/api/notifications/read-all"), {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}` },
       });

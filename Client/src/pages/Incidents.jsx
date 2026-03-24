@@ -9,8 +9,7 @@ import {
   ShieldAlert,
   SlidersHorizontal,
 } from "lucide-react";
-
-const API = "http://localhost:5000";
+import { apiUrl } from "../utils/api";
 
 const toneMap = {
   HIGH: "border-red-500/20 bg-red-500/10 text-red-500",
@@ -35,7 +34,7 @@ const Incidents = () => {
         return;
       }
 
-      const res = await fetch(`${API}/api/alerts`, {
+      const res = await fetch(apiUrl("/api/alerts"), {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json().catch(() => []);

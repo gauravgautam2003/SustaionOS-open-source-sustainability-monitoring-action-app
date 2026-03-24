@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import Card from "../components/ui/Card";
 import { Download } from "lucide-react";
 import { getAuthToken } from "../utils/auth";
+import { apiUrl } from "../utils/api";
 
 const Reports = () => {
   const [reportData, setReportData] = useState(null);
@@ -12,7 +13,7 @@ const Reports = () => {
     const fetchReportData = async () => {
       try {
         const token = getAuthToken();
-        const res = await fetch("http://localhost:5000/api/report/data", {
+        const res = await fetch(apiUrl("/api/report/data"), {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
 
@@ -34,7 +35,7 @@ const Reports = () => {
     setPdfLoading(true);
     try {
       const token = getAuthToken();
-      const res = await fetch("http://localhost:5000/api/report/pdf", {
+      const res = await fetch(apiUrl("/api/report/pdf"), {
         method: "GET",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });

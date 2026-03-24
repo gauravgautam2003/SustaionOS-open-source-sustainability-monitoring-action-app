@@ -22,7 +22,7 @@ exports.generateFinalAnswer = async ({
     // 🔮 Prediction
     let prediction = {};
     try {
-      prediction = predictService.predictNext(history) || {};
+      prediction = (await predictService.predictNext(history)) || {};
     } catch (e) {
       prediction = {};
     }

@@ -2,8 +2,7 @@ import React, { useEffect, useState } from "react";
 import Card from "../components/ui/Card";
 import { getAuthToken } from "../utils/auth";
 import { Brain, Lightbulb, RefreshCcw, Sparkles } from "lucide-react";
-
-const API = "http://localhost:5000";
+import { apiUrl } from "../utils/api";
 
 const Recommendations = () => {
   const [insights, setInsights] = useState(null);
@@ -17,8 +16,8 @@ const Recommendations = () => {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
       const [insightsRes, reportRes] = await Promise.all([
-        fetch(`${API}/api/analytics/insights?period=week`, { headers }),
-        fetch(`${API}/api/report/data`, { headers }),
+        fetch(apiUrl("/api/analytics/insights?period=week"), { headers }),
+        fetch(apiUrl("/api/report/data"), { headers }),
       ]);
 
       const insightsJson = await insightsRes.json();

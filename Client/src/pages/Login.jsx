@@ -2,8 +2,7 @@ import React, { useState, useContext } from "react";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
-
-const API = "http://localhost:5000";
+import { apiUrl } from "../utils/api";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -28,7 +27,7 @@ const Login = () => {
     setError("");
 
     try {
-      const res = await fetch(`${API}/api/auth/login`, {
+      const res = await fetch(apiUrl("/api/auth/login"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

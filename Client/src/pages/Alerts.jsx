@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState, useContext } from "react";
 import Card from "../components/ui/Card";
 import { ThemeContext } from "../context/ThemeContext";
 import { getAuthToken } from "../utils/auth";
+import { apiUrl } from "../utils/api";
 import {
   Bell,
   AlertTriangle,
@@ -10,8 +11,6 @@ import {
   Layers3,
   RotateCcw,
 } from "lucide-react";
-
-const API = "http://localhost:5000";
 
 const statusOrder = ["OPEN", "ACKNOWLEDGED", "IN_PROGRESS", "RESOLVED"];
 
@@ -37,7 +36,7 @@ const Alerts = () => {
         return;
       }
 
-      const res = await fetch(`${API}/api/alerts`, {
+      const res = await fetch(apiUrl("/api/alerts"), {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json().catch(() => []);
@@ -58,7 +57,7 @@ const Alerts = () => {
     try {
       const token = getAuthToken();
       if (!token) return;
-      const res = await fetch(`${API}/api/alerts/${id}`, {
+      const res = await fetch(apiUrl(`/api/alerts/${id}`), {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

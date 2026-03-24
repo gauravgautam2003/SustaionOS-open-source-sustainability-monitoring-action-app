@@ -52,6 +52,11 @@ const intents = {
 
  suggestion:["suggest","tip","improve","optimize","save","recommend"]
 
+ ,
+ smalltalk: [
+  "hi","hello","hey","thanks","thank you","how are you","what can you do","who are you"
+ ]
+
 
 };
 

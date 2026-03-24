@@ -7,7 +7,7 @@ const decision = require("../ai/decision.engine");
 exports.ask = async (req, res, next) => {
   try {
     const userId = req.user && req.user._id;
-    const { question, water, energy } = req.body || {};
+    const { question, water, energy, skipLLM } = req.body || {};
 
     if (!question || !question.toString().trim()) {
       return res.status(400).json({ msg: "Question required" });
@@ -22,7 +22,7 @@ exports.ask = async (req, res, next) => {
         { water, energy, question },
         userId
       );
-      return res.json({ status: "success", intent, answer });
+      return res.json({ status: "success", intent, answer, aiMode: "local" });
     }
 
     const [latest, history, alerts] = await Promise.all([
@@ -34,7 +34,7 @@ exports.ask = async (req, res, next) => {
     const answer = await aiService.generateAnswer({
       question: question.toString(),
       userId,
-      context: { latest, history, alerts },
+      context: { latest, history, alerts, skipLLM: Boolean(skipLLM) },
     });
 
     return res.json(answer);
@@ -51,7 +51,7 @@ exports.forecast = async (req, res) => {
     if (!userId) return res.status(401).json({ msg: "Unauthorized" });
 
     const history = await Data.find({ userId }).sort({ timestamp: -1 }).limit(48);
-    const prediction = predictService.predictNext(history);
+    const prediction = await predictService.predictNext(history);
 
     return res.json({ status: "success", prediction });
   } catch (err) {

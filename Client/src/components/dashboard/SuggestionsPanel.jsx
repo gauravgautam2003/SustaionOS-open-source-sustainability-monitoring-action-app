@@ -3,6 +3,7 @@ import Card from "../ui/Card";
 import { Lightbulb, RotateCcw } from "lucide-react";
 import { ThemeContext } from "../../context/ThemeContext";
 import { getAuthToken } from "../../utils/auth";
+import { apiUrl } from "../../utils/api";
 
 const SuggestionsPanel = () => {
   const { darkMode } = useContext(ThemeContext);
@@ -43,14 +44,15 @@ const SuggestionsPanel = () => {
     setLoading(true);
     try {
       const token = getAuthToken();
-      const res = await fetch("http://localhost:5000/api/ai/query",{
+      const res = await fetch(apiUrl("/api/ai/query"),{
         method:"POST",
         headers:{
           "Content-Type":"application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
         body: JSON.stringify({
-          question:"Give me sustainability suggestions"
+          question:"Give me sustainability suggestions",
+          skipLLM: true
         })
       });
 

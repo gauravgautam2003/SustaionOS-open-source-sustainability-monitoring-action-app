@@ -1,5 +1,6 @@
 const Data = require("../models/Data");
 const scoreService = require("./sustainabilityScore.engine");
+const mlBridge = require("./mlBridge.service");
 
 const ENERGY_RATE = 8;
 const WATER_RATE = 0.02;
@@ -65,12 +66,15 @@ const buildBuildingBenchmarks = (records = []) => {
   }, {});
 
   return Object.values(byBuilding)
-    .map((item) => ({
-      ...item,
-      locations: Array.from(item.locations || []),
-      totalLoad: item.energy + item.water,
-      efficiency: Math.max(15, Math.round(100 - (item.energy + item.water) / maxLoad * 70)),
-    }))
+    .map((item) => {
+      const totalLoad = item.energy + item.water;
+      return {
+        ...item,
+        locations: Array.from(item.locations || []),
+        totalLoad,
+        efficiency: Math.max(15, Math.round(100 - (totalLoad / maxLoad) * 70)),
+      };
+    })
     .sort((a, b) => b.totalLoad - a.totalLoad)
     .slice(0, 5);
 };
@@ -91,10 +95,8 @@ const buildActions = ({ energyDelta, waterDelta, latest, score, avgEnergy, avgWa
   const actions = [];
   const latestEnergy = toNumber(latest?.energy);
   const latestWater = toNumber(latest?.water);
-  const energyTriggered =
-    energyDelta > 10 || (avgEnergy > 0 && latestEnergy > avgEnergy * 1.15);
-  const waterTriggered =
-    waterDelta > 10 || (avgWater > 0 && latestWater > avgWater * 1.15);
+  const energyTriggered = energyDelta > 10 || (avgEnergy > 0 && latestEnergy > avgEnergy * 1.15);
+  const waterTriggered = waterDelta > 10 || (avgWater > 0 && latestWater > avgWater * 1.15);
 
   if (energyTriggered) {
     actions.push({
@@ -135,27 +137,17 @@ const buildActions = ({ energyDelta, waterDelta, latest, score, avgEnergy, avgWa
   return actions.slice(0, 4);
 };
 
-exports.getExecutiveInsights = async (userId, period = "week") => {
-  const windowDays = getWindowDays(period);
-  const currentStart = getWindowStart(windowDays);
-  const previousStart = getWindowStart(windowDays * 2);
+const normalizeRisk = (score, remoteRisk) => {
+  const risk = (remoteRisk || "").toString().toUpperCase();
+  if (risk === "LOW") return "Low";
+  if (risk === "MEDIUM") return "Moderate";
+  if (risk === "HIGH") return "High";
+  if (risk === "SEVERE") return "Critical";
+  return score >= 80 ? "Low" : score >= 60 ? "Moderate" : score >= 40 ? "High" : "Critical";
+};
 
-  const records = await Data.find({
-    userId,
-    timestamp: { $gte: previousStart },
-  }).sort({ timestamp: -1 });
-
-  const currentRecords = records.filter((item) => new Date(item.timestamp || item.createdAt) >= currentStart);
-  const previousRecords = records.filter((item) => {
-    const ts = new Date(item.timestamp || item.createdAt);
-    return ts >= previousStart && ts < currentStart;
-  });
-
-  const current = aggregateMetrics(currentRecords);
-  const previous = aggregateMetrics(previousRecords);
-  const buildingBenchmarks = buildBuildingBenchmarks(currentRecords.length ? currentRecords : records);
-  const scoreSnapshot = await scoreService.calculateScore(userId);
-
+const buildFallbackInsights = ({ current, previous, windowDays, scoreSnapshot, records, period }) => {
+  const buildingBenchmarks = buildBuildingBenchmarks(records);
   const currentDailyEnergy = current.count ? current.energy / Math.max(1, windowDays) : 0;
   const previousDailyEnergy = previous.count ? previous.energy / Math.max(1, windowDays) : 0;
   const currentDailyWater = current.count ? current.water / Math.max(1, windowDays) : 0;
@@ -170,24 +162,12 @@ exports.getExecutiveInsights = async (userId, period = "week") => {
   );
   const carbon = Math.round(current.energy * CARBON_FACTOR);
   const estimatedCost = Math.round(current.energy * ENERGY_RATE + current.water * WATER_RATE);
-
   const excessEnergy = Math.max(0, currentDailyEnergy - previousDailyEnergy);
   const excessWater = Math.max(0, currentDailyWater - previousDailyWater);
   const rawMonthlySavings = Math.round(excessEnergy * 30 * ENERGY_RATE + excessWater * 30 * WATER_RATE);
   const savingsCap = Math.max(1000, Math.round(estimatedCost * 1.5));
   const monthlySavings = Math.max(0, Math.min(rawMonthlySavings, savingsCap));
-
-  const normalizeRisk = (value) => {
-    const risk = (value || "").toString().toUpperCase();
-    if (risk === "LOW") return "Low";
-    if (risk === "MEDIUM") return "Moderate";
-    if (risk === "HIGH") return "High";
-    if (risk === "SEVERE") return "Critical";
-    return score >= 80 ? "Low" : score >= 60 ? "Moderate" : score >= 40 ? "High" : "Critical";
-  };
-
-  const riskLevel = normalizeRisk(scoreSnapshot?.risk);
-
+  const riskLevel = normalizeRisk(score, scoreSnapshot?.risk);
   const latest = current.latest;
   const actions = buildActions({
     energyDelta: energyDelta || 0,
@@ -216,9 +196,14 @@ exports.getExecutiveInsights = async (userId, period = "week") => {
         : "Keep current settings and continue monitoring for drift.";
 
   return {
-    period,
+    period: period || "week",
     windowDays,
     totalRecords: current.count,
+    mlStatus: {
+      active: false,
+      source: "js-fallback",
+      label: "JS Fallback",
+    },
     current: {
       energy: current.energy,
       water: current.water,
@@ -255,4 +240,124 @@ exports.getExecutiveInsights = async (userId, period = "week") => {
     priorityActions: actions,
     buildingBenchmarks,
   };
+};
+
+exports.getExecutiveInsights = async (userId, period = "week") => {
+  const windowDays = getWindowDays(period);
+  const currentStart = getWindowStart(windowDays);
+  const previousStart = getWindowStart(windowDays * 2);
+
+  const records = await Data.find({
+    userId,
+    timestamp: { $gte: previousStart },
+  }).sort({ timestamp: -1 });
+
+  const currentRecords = records.filter((item) => new Date(item.timestamp || item.createdAt) >= currentStart);
+  const previousRecords = records.filter((item) => {
+    const ts = new Date(item.timestamp || item.createdAt);
+    return ts >= previousStart && ts < currentStart;
+  });
+
+  const current = aggregateMetrics(currentRecords);
+  const previous = aggregateMetrics(previousRecords);
+  const scoreSnapshot = await scoreService.calculateScore(userId);
+
+  const currentDailyEnergy = current.count ? current.energy / Math.max(1, windowDays) : 0;
+  const previousDailyEnergy = previous.count ? previous.energy / Math.max(1, windowDays) : 0;
+  const currentDailyWater = current.count ? current.water / Math.max(1, windowDays) : 0;
+  const previousDailyWater = previous.count ? previous.water / Math.max(1, windowDays) : 0;
+
+  const energyDelta = percentChange(currentDailyEnergy, previousDailyEnergy);
+  const waterDelta = percentChange(currentDailyWater, previousDailyWater);
+  const fallbackScore = scoreSnapshot?.score ?? Math.max(
+    0,
+    Math.min(100, Math.round(100 - currentDailyEnergy / 10 - currentDailyWater / 50))
+  );
+
+  let remote = null;
+  try {
+    remote = await mlBridge.getInsights(currentRecords.length ? currentRecords : records);
+  } catch (err) {
+    console.error("Python ML insights unavailable, using local fallback:", err.message || err);
+  }
+
+  if (remote && typeof remote === "object") {
+    const buildingBenchmarks = Array.isArray(remote.hotspots) && remote.hotspots.length > 0
+      ? remote.hotspots
+      : buildBuildingBenchmarks(currentRecords.length ? currentRecords : records);
+    const score = Number.isFinite(Number(remote.score)) ? Number(remote.score) : fallbackScore;
+    const riskLevel = normalizeRisk(score, remote.riskLevel);
+    const actions = Array.isArray(remote.recommendations) && remote.recommendations.length > 0
+      ? remote.recommendations.map((message, index) => ({
+          title: `ML Action ${index + 1}`,
+          impact: index === 0 ? "High" : "Medium",
+          reason: message,
+        }))
+      : buildActions({
+          energyDelta: energyDelta || 0,
+          waterDelta: waterDelta || 0,
+          latest: current.latest,
+          score,
+          avgEnergy: current.avgEnergy,
+          avgWater: current.avgWater,
+        });
+
+    const summary = remote.summary || `ML analysis suggests ${riskLevel.toLowerCase()} risk over the current window.`;
+    const nextBestAction =
+      remote.recommendations?.[0] ||
+      (riskLevel === "Critical"
+        ? "Escalate immediately and inspect the active load or leakage source."
+        : "Continue monitoring and address the highest-ranked hotspot.");
+
+    return {
+      period,
+      windowDays,
+      totalRecords: current.count,
+      mlStatus: {
+        active: true,
+        source: "python-ml",
+        label: "Python ML Active",
+      },
+      current: {
+        energy: current.energy,
+        water: current.water,
+        avgEnergy: Math.round(current.avgEnergy),
+        avgWater: Math.round(current.avgWater),
+      },
+      latestReading: remote.latest
+        ? {
+            building: remote.latest.building || current.latest?.building || "Unknown",
+            location: remote.latest.location || current.latest?.location || "",
+            energy: toNumber(remote.latest.energy),
+            water: toNumber(remote.latest.water),
+            timestamp: current.latest?.timestamp || current.latest?.createdAt || null,
+          }
+        : null,
+      previous: {
+        energy: previous.energy,
+        water: previous.water,
+        avgEnergy: Math.round(previous.avgEnergy),
+        avgWater: Math.round(previous.avgWater),
+      },
+      deltas: {
+        energy: energyDelta == null ? null : Number(energyDelta.toFixed(1)),
+        water: waterDelta == null ? null : Number(waterDelta.toFixed(1)),
+      },
+      score,
+      riskLevel,
+      statusLabel: severityFromScore(score),
+      carbon: Math.round(current.energy * CARBON_FACTOR),
+      estimatedCost: Math.round(current.energy * ENERGY_RATE + current.water * WATER_RATE),
+      monthlySavingsPotential: Math.max(0, Math.round((remote.forecast?.predictedEnergyNextDay || 0) * 0.1)),
+      summary,
+      nextBestAction,
+      priorityActions: actions.slice(0, 4),
+      buildingBenchmarks,
+      confidence: Number.isFinite(Number(remote.confidence)) ? Number(remote.confidence) : 80,
+      anomalies: Array.isArray(remote.anomalies) ? remote.anomalies : [],
+      forecast: remote.forecast || null,
+    };
+  }
+
+  return buildFallbackInsights({ current, previous, windowDays, scoreSnapshot, records, period });
 };

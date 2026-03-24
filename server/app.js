@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const mongoose = require("mongoose");
 
 const app = express();
 
@@ -9,6 +10,31 @@ app.use(cors({
 }));
 
 app.use(express.json());
+
+app.get("/api/health", (req, res) => {
+  res.json({
+    success: true,
+    server: "up",
+    dbReady: Boolean(global.dbReady),
+    mongoState: mongoose.connection.readyState,
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+  });
+});
+
+app.use((req, res, next) => {
+  if (req.path === "/api/health") return next();
+
+  if (req.path.startsWith("/api/") && !global.dbReady) {
+    return res.status(503).json({
+      success: false,
+      msg: "Database unavailable",
+      dbReady: false,
+    });
+  }
+
+  next();
+});
 
 app.use("/api/data", require("./routes/data.routes"));
 app.use("/api/alerts", require("./routes/alert.routes"));

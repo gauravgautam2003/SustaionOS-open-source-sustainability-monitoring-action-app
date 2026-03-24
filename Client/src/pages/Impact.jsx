@@ -2,8 +2,7 @@ import React, { useEffect, useState } from "react";
 import Card from "../components/ui/Card";
 import { getAuthToken } from "../utils/auth";
 import { Flame, Droplets, Leaf, TrendingUp, RefreshCcw } from "lucide-react";
-
-const API = "http://localhost:5000";
+import { apiUrl } from "../utils/api";
 
 const Impact = () => {
   const [report, setReport] = useState(null);
@@ -17,8 +16,8 @@ const Impact = () => {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
       const [reportRes, summaryRes] = await Promise.all([
-        fetch(`${API}/api/report/data`, { headers }),
-        fetch(`${API}/api/analytics/summary?period=month`, { headers }),
+        fetch(apiUrl("/api/report/data"), { headers }),
+        fetch(apiUrl("/api/analytics/summary?period=month"), { headers }),
       ]);
 
       const reportJson = await reportRes.json();

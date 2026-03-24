@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useContext } from "react";
 import Card from "../components/ui/Card";
 import { Line } from "react-chartjs-2";
-import { io } from "socket.io-client";
 import { AuthContext } from "../context/AuthContext";
+import socket from "../utils/socket";
+import { apiUrl } from "../utils/api";
 
 import {
   Chart as ChartJS,
@@ -15,8 +16,6 @@ import {
 } from "chart.js";
 
 ChartJS.register(LineElement, CategoryScale, LinearScale, PointElement, Tooltip, Legend);
-
-const socket = io("http://localhost:5000");
 
 const getStatus = (energy) => {
   if (energy > 200) return "Critical";
@@ -50,7 +49,7 @@ const History = () => {
 
     const fetchHistory = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/data/history", {
+        const res = await fetch(apiUrl("/api/data/history"), {
           headers: { Authorization: `Bearer ${user.token}` },
         });
         const data = await res.json();
@@ -74,6 +73,7 @@ const History = () => {
     fetchHistory();
 
     // Realtime updates
+    if (!socket.connected) socket.connect();
     socket.on("newData", (newData) => {
       if (newData.userId !== user._id) return;
       setLogs((prev) => [newData, ...prev]);

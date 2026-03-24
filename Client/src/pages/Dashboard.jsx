@@ -22,9 +22,9 @@ import DashboardSkeleton from "../components/skeleton/DashboardSkeleton";
 import AIChatWidget from "../components/ai/AIChatWidget";
 import PredictionCard from "../components/dashboard/PredictionCard";
 import ExecutiveInsightsPanel from "../components/dashboard/ExecutiveInsightsPanel";
+import { apiUrl } from "../utils/api";
 
-const API = "http://localhost:5000";
-const socket = io(API);
+const socket = io(apiUrl(""));
 
 const Dashboard = () => {
   const [loading, setLoading] = useState(true);
@@ -44,9 +44,9 @@ const Dashboard = () => {
       }
 
       const [historyRes, scoreRes, alertsRes] = await Promise.all([
-        fetch(`${API}/api/data/history`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${API}/api/score`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${API}/api/alerts`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(apiUrl("/api/data/history"), { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(apiUrl("/api/score"), { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(apiUrl("/api/alerts"), { headers: { Authorization: `Bearer ${token}` } }),
       ]);
 
       const historyJson = await historyRes.json();
@@ -93,7 +93,7 @@ const Dashboard = () => {
       try {
         const currentToken = getAuthToken();
         if (!currentToken) return;
-        const scoreRes = await fetch(`${API}/api/score`, {
+        const scoreRes = await fetch(apiUrl("/api/score"), {
           headers: { Authorization: `Bearer ${currentToken}` },
         });
         if (scoreRes.ok) {

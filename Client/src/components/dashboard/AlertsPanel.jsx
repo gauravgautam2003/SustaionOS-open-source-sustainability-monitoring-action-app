@@ -1,6 +1,7 @@
 import React from "react";
 import Card from "../ui/Card";
 import { getAuthToken } from "../../utils/auth";
+import { apiUrl } from "../../utils/api";
 
 const getStyle = (severity) => {
   const s = (severity || "").toString().toUpperCase();
@@ -20,7 +21,7 @@ const AlertsPanel = ({ alerts = [], onAlertUpdated }) => {
       const token = getAuthToken();
       if (!token) return;
 
-      const res = await fetch(`http://localhost:5000/api/alerts/${id}`, {
+      const res = await fetch(apiUrl(`/api/alerts/${id}`), {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -40,47 +41,30 @@ const AlertsPanel = ({ alerts = [], onAlertUpdated }) => {
   if (!alerts.length) {
     return (
       <Card className="p-6 text-center text-gray-500 dark:text-gray-400">
-        ✅ No alerts — system running efficiently
+        No alerts - system running efficiently
       </Card>
     );
   }
 
   return (
     <div className="space-y-4">
-
-      <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-        🚨 System Alerts
-      </h2>
+      <h2 className="text-xl font-semibold text-gray-900 dark:text-white">System Alerts</h2>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
         {alerts.map((alert, index) => (
           <Card
             key={index}
-            className={`
-              border p-4 rounded-xl
-              transition-all duration-300
-              hover:scale-[1.04] hover:shadow-xl
-              ${getStyle(alert.severity)}
-            `}
+            className={`border p-4 rounded-xl transition-all duration-300 hover:scale-[1.04] hover:shadow-xl ${getStyle(alert.severity)}`}
           >
-            {/* HEADER */}
             <div className="flex justify-between items-center mb-2">
-              <h3 className="font-semibold capitalize">
-                {alert.building || "System"}
-              </h3>
-
+              <h3 className="font-semibold capitalize">{alert.building || "System"}</h3>
               <span className="text-xs opacity-70">
-                {new Date(alert.time).toLocaleTimeString()}
+                {new Date(alert.time || alert.createdAt).toLocaleTimeString()}
               </span>
             </div>
 
-            {/* MESSAGE */}
-            <p className="text-sm opacity-90">
-              {alert.message}
-            </p>
+            <p className="text-sm opacity-90">{alert.message}</p>
 
-            {/* SEVERITY TAG */}
             <div className="mt-3">
               <span className="text-xs px-2 py-1 rounded bg-black/20">
                 {alert.severity
@@ -88,9 +72,7 @@ const AlertsPanel = ({ alerts = [], onAlertUpdated }) => {
                   : "Low"}
               </span>
               {alert.status && (
-                <span className="ml-2 text-xs px-2 py-1 rounded bg-black/20">
-                  {alert.status}
-                </span>
+                <span className="ml-2 text-xs px-2 py-1 rounded bg-black/20">{alert.status}</span>
               )}
             </div>
 
@@ -109,20 +91,12 @@ const AlertsPanel = ({ alerts = [], onAlertUpdated }) => {
               </button>
             </div>
 
-            {alert.rootCause && (
-              <p className="mt-3 text-xs opacity-80">
-                Root cause: {alert.rootCause}
-              </p>
-            )}
+            {alert.rootCause && <p className="mt-3 text-xs opacity-80">Root cause: {alert.rootCause}</p>}
             {alert.estimatedLoss ? (
-              <p className="mt-1 text-xs opacity-80">
-                Estimated loss: Rs. {alert.estimatedLoss}
-              </p>
+              <p className="mt-1 text-xs opacity-80">Estimated loss: Rs. {alert.estimatedLoss}</p>
             ) : null}
-
           </Card>
         ))}
-
       </div>
     </div>
   );

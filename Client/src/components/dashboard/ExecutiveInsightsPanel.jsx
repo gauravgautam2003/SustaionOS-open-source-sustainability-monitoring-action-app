@@ -4,14 +4,14 @@ import {
   AlertTriangle,
   BadgeCheck,
   ArrowUpRight,
+  Cpu,
   IndianRupee,
   Leaf,
   Target,
 } from "lucide-react";
 import { ThemeContext } from "../../context/ThemeContext";
 import { getAuthToken } from "../../utils/auth";
-
-const API = "http://localhost:5000";
+import { apiUrl } from "../../utils/api";
 
 const toneStyles = {
   Low: "bg-emerald-500/15 text-emerald-500 border-emerald-500/20",
@@ -38,7 +38,7 @@ const ExecutiveInsightsPanel = ({ period = "week", compact = false }) => {
           return;
         }
 
-        const res = await fetch(`${API}/api/analytics/insights?period=${period}`, {
+        const res = await fetch(apiUrl(`/api/analytics/insights?period=${period}`), {
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
@@ -80,13 +80,25 @@ const ExecutiveInsightsPanel = ({ period = "week", compact = false }) => {
           </p>
         </div>
 
-        <div
-          className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm font-medium ${
-            toneStyles[data?.riskLevel || "Low"]
-          }`}
-        >
-          <AlertTriangle size={16} />
-          {data?.riskLevel || "Low"} risk
+        <div className="flex flex-wrap items-center gap-2 justify-end">
+          <div
+            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm font-medium ${
+              data?.mlStatus?.active
+                ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/20"
+                : "bg-gray-500/15 text-gray-500 border-gray-500/20"
+            }`}
+          >
+            <Cpu size={16} />
+            {data?.mlStatus?.label || "JS Fallback"}
+          </div>
+          <div
+            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm font-medium ${
+              toneStyles[data?.riskLevel || "Low"]
+            }`}
+          >
+            <AlertTriangle size={16} />
+            {data?.riskLevel || "Low"} risk
+          </div>
         </div>
       </div>
 

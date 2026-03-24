@@ -5,9 +5,23 @@ const root = require("../ai/rootCause.engine");
 const suggest = require("../ai/suggestion.engine");
 const predictService = require("../services/prediction.service");
 const intentEngine = require("../ai/intent.engine");
+const {
+  AI_PROVIDER,
+  OPENAI_API_KEY,
+  OPENAI_MODEL,
+  OPENAI_CHAT_URL,
+  GEMINI_API_KEY,
+  GEMINI_MODEL,
+  GEMINI_URL,
+} = require("../config/env");
 
 const convoMemory = new Map();
 const MAX_MEMORY = 12;
+const AI_PROVIDER_MODE = AI_PROVIDER || "auto";
+const OPENAI_RETRY_COOLDOWN_MS = 5 * 60 * 1000;
+const GEMINI_RETRY_COOLDOWN_MS = 5 * 60 * 1000;
+let openaiRetryUntil = 0;
+let geminiRetryUntil = 0;
 
 const addToMemory = (userId, role, text) => {
   if (!userId) return;
@@ -22,6 +36,12 @@ const getMemory = (userId) => {
   if (!userId) return [];
   return convoMemory.get(String(userId)) || [];
 };
+
+const formatMemory = (memory = []) =>
+  memory
+    .slice(-6)
+    .map((item) => `${item.role === "assistant" ? "Assistant" : "User"}: ${item.text}`)
+    .join("\n");
 
 const toNumber = (value) => {
   const n = Number(value);
@@ -58,6 +78,261 @@ const buildStructuredAnswer = (payload) => ({
   ...payload,
 });
 
+const extractResponseText = (response) => {
+  if (!response) return "";
+  if (typeof response.output_text === "string" && response.output_text.trim()) {
+    return response.output_text.trim();
+  }
+
+  const chunks = [];
+  for (const item of response.output || []) {
+    if (item?.type !== "message" || !Array.isArray(item.content)) continue;
+    for (const piece of item.content) {
+      if (piece?.type === "output_text" && piece.text) {
+        chunks.push(piece.text);
+      }
+    }
+  }
+
+  return chunks.join("\n").trim();
+};
+
+const parseJsonSafe = (text) => {
+  if (typeof text !== "string") return null;
+  const cleaned = text
+    .trim()
+    .replace(/^```json/i, "")
+    .replace(/^```/i, "")
+    .replace(/```$/i, "")
+    .trim();
+
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    return null;
+  }
+};
+
+const buildConversationPrompt = ({ question, payload, insights, latest, alerts, memory }) => {
+  const safeInsights = {
+    score: insights?.score ?? 0,
+    riskLevel: insights?.riskLevel || "Low",
+    carbon: insights?.carbon ?? 0,
+    savings: insights?.monthlySavingsPotential ?? 0,
+    nextBestAction: insights?.nextBestAction || "",
+    summary: insights?.summary || "",
+    latestReading: insights?.latestReading || null,
+    buildingBenchmarks: (insights?.buildingBenchmarks || []).slice(0, 5),
+  };
+
+  const safeLatest = latest
+    ? {
+        building: latest.building || "Unknown",
+        location: latest.location || "",
+        energy: toNumber(latest.energy),
+        water: toNumber(latest.water),
+        timestamp: latest.timestamp || latest.createdAt || null,
+      }
+    : null;
+
+  const safeAlerts = (alerts || []).slice(0, 3).map((a) => ({
+    building: a.building || "System",
+    severity: a.severity || "LOW",
+    status: a.status || "OPEN",
+    message: a.message || "",
+  }));
+
+  return [
+    `Question: ${question}`,
+    `Current response plan: ${JSON.stringify(payload)}`,
+    `Latest reading: ${JSON.stringify(safeLatest)}`,
+    `Insights: ${JSON.stringify(safeInsights)}`,
+    `Recent alerts: ${JSON.stringify(safeAlerts)}`,
+    `Conversation history:\n${formatMemory(memory) || "No prior conversation."}`,
+    "",
+    "Return ONLY valid JSON with this shape:",
+    JSON.stringify({
+      reply: "friendly natural language reply",
+      tone: "friendly|direct|analytical|supportive",
+      follow_up: "optional short follow-up question",
+    }, null, 2),
+    "Rules:",
+    "- Do not invent data.",
+    "- Keep the reply conversational and human.",
+    "- If the user asks a general or casual question, answer naturally and then relate it to the sustainability app when relevant.",
+    "- If the user asks about metrics, explain them clearly using the provided data.",
+    "- Reply in Hinglish if the user uses Hinglish.",
+  ].join("\n");
+};
+
+const getProviderPreference = () => {
+  const provider = String(AI_PROVIDER_MODE || "auto").toLowerCase();
+  if (provider === "gemini" || provider === "openai" || provider === "local") {
+    return provider;
+  }
+  return "auto";
+};
+
+const providerMessage = (provider, model) => ({
+  provider,
+  model,
+  label: provider === "gemini" ? `gemini (${model})` : provider === "openai" ? `openai (${model})` : "local",
+});
+
+const humanizeWithOpenAI = async ({ prompt }) => {
+  if (!OPENAI_API_KEY || typeof fetch !== "function") return null;
+  if (Date.now() < openaiRetryUntil) return null;
+
+  const response = await fetch(OPENAI_CHAT_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: OPENAI_MODEL,
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are SustainOS AI, a friendly sustainability copilot. Keep answers concise, natural, grounded in the provided data, and short. Always return valid JSON only.",
+        },
+        { role: "user", content: prompt },
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.3,
+      max_completion_tokens: 400,
+    }),
+  });
+
+  if (!response.ok) {
+    if (response.status === 429 || response.status === 503) {
+      openaiRetryUntil = Date.now() + OPENAI_RETRY_COOLDOWN_MS;
+    }
+    throw new Error(`OpenAI request failed with status ${response.status}`);
+  }
+
+  const json = await response.json();
+  const rawText = json?.choices?.[0]?.message?.content || extractResponseText(json);
+  const parsed = parseJsonSafe(rawText);
+
+  if (!parsed || !parsed.reply) {
+    throw new Error("OpenAI response did not return valid JSON");
+  }
+
+  return {
+    reply: String(parsed.reply).trim(),
+    tone: parsed.tone || "friendly",
+    followUp: parsed.follow_up || parsed.followUp || "",
+    provider: "openai",
+    model: OPENAI_MODEL,
+  };
+};
+
+const humanizeWithGemini = async ({ prompt }) => {
+  if (!GEMINI_API_KEY || typeof fetch !== "function") return null;
+  if (Date.now() < geminiRetryUntil) return null;
+
+  const response = await fetch(
+    `${GEMINI_URL}/${encodeURIComponent(GEMINI_MODEL)}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        systemInstruction: {
+          parts: [
+            {
+              text:
+                "You are SustainOS AI, a friendly sustainability copilot. Keep answers concise, natural, grounded in the provided data, and short. Always return valid JSON only.",
+            },
+          ],
+        },
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: prompt }],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 400,
+        },
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    if (response.status === 429 || response.status === 503) {
+      geminiRetryUntil = Date.now() + GEMINI_RETRY_COOLDOWN_MS;
+    }
+    throw new Error(`Gemini request failed with status ${response.status}`);
+  }
+
+  const json = await response.json();
+  const rawText =
+    json?.candidates?.[0]?.content?.parts
+      ?.map((part) => part?.text || "")
+      .join("\n")
+      .trim() || "";
+  const parsed = parseJsonSafe(rawText);
+
+  if (!parsed || !parsed.reply) {
+    throw new Error("Gemini response did not return valid JSON");
+  }
+
+  return {
+    reply: String(parsed.reply).trim(),
+    tone: parsed.tone || "friendly",
+    followUp: parsed.follow_up || parsed.followUp || "",
+    provider: "gemini",
+    model: GEMINI_MODEL,
+  };
+};
+
+const humanizeWithLLM = async ({ question, payload, insights, latest, alerts, memory }) => {
+  if (typeof fetch !== "function") return null;
+
+  const prompt = buildConversationPrompt({
+    question,
+    payload,
+    insights,
+    latest,
+    alerts,
+    memory,
+  });
+
+  const mode = getProviderPreference();
+  const attempts = [];
+
+  if (mode === "gemini" || mode === "auto") {
+    attempts.push(() => humanizeWithGemini({ prompt }));
+  }
+  if (mode === "openai" || mode === "auto") {
+    attempts.push(() => humanizeWithOpenAI({ prompt }));
+  }
+
+  for (const attempt of attempts) {
+    try {
+      const result = await attempt();
+      if (result?.reply) return result;
+    } catch (err) {
+      const msg = String(err?.message || "");
+      if (/429|rate limit|quota|insufficient/i.test(msg)) {
+        if (msg.toLowerCase().includes("gemini")) {
+          geminiRetryUntil = Date.now() + GEMINI_RETRY_COOLDOWN_MS;
+        } else {
+          openaiRetryUntil = Date.now() + OPENAI_RETRY_COOLDOWN_MS;
+        }
+      }
+      console.error(`${msg.includes("Gemini") ? "Gemini" : "OpenAI"} refinement failed:`, err.message || err);
+    }
+  }
+
+  return null;
+};
+
 const computeConfidence = (intent, parsed, insights, hasHistory) => {
   let score = 55;
   if (intent && intent !== "general_help" && intent !== "unknown") score += 15;
@@ -79,6 +354,7 @@ const parseQuery = (q) => {
   const hasBuilding = /\bbuilding|site|campus|floor|property\b/.test(q);
   const hasCurrent = /\bcurrent|latest|now|today|current data|my data|abhi|aaj\b/.test(q);
   const hasSuggestion = /\bsuggest|suggestion|recommend|tip|improve|optimize|save\b/.test(q);
+  const hasSmallTalk = /\bhi|hello|hey|thanks|thank you|who are you|what can you do|how are you\b/.test(q);
 
   let timeframe = "current";
   if (q.includes("today")) timeframe = "today";
@@ -103,6 +379,7 @@ const parseQuery = (q) => {
     hasBuilding,
     hasCurrent,
     hasSuggestion,
+    hasSmallTalk,
     timeframe,
     comparisonTarget,
   };
@@ -136,7 +413,7 @@ const generateAnswer = async ({ question, userId, context = {} }) => {
     Promise.resolve(historyPromise),
   ]);
 
-  const prediction = predictService.predictNext(recentHistory) || {};
+  const prediction = (await predictService.predictNext(recentHistory)) || {};
   const rootCause = await root.findCause(userId);
   const tips = await suggest.getSuggestions(userId);
 
@@ -290,6 +567,13 @@ const generateAnswer = async ({ question, userId, context = {} }) => {
       })),
       parsed,
     });
+  } else if (parsed.hasSmallTalk && !parsed.hasEnergy && !parsed.hasWater && !parsed.hasCarbon && !parsed.hasScore) {
+    payload = buildStructuredAnswer({
+      intent: "small_talk",
+      answer:
+        "Hey! I can help with live sustainability questions, forecasts, comparisons, alerts, reports, and next actions. Ask me in a natural way and I’ll figure it out.",
+      parsed,
+    });
   } else if (isFollowUp) {
     const lastAssistant = [...memory].reverse().find((m) => m.role === "assistant");
     payload = buildStructuredAnswer({
@@ -321,9 +605,41 @@ const generateAnswer = async ({ question, userId, context = {} }) => {
 
   if (payload?.answer) {
     const isFirstAssistant = (memory || []).filter((m) => m.role === "assistant").length === 0;
-    const lead = isFirstAssistant ? "Hi - " : "";
-    payload.answer = `${lead}${payload.answer}`;
+    if (!OPENAI_API_KEY && isFirstAssistant && !/^hi\b/i.test(payload.answer)) {
+      payload.answer = `Hi - ${payload.answer}`;
+    }
   }
+
+  try {
+    const shouldSkipLLM = Boolean(context?.skipLLM);
+    if (!shouldSkipLLM) {
+      const humanized = await humanizeWithLLM({
+        question: qRaw,
+        payload,
+        insights,
+        latest,
+        alerts,
+        memory,
+      });
+
+      if (humanized?.reply) {
+        payload.answer = humanized.reply;
+        payload.ai = providerMessage(humanized.provider, humanized.model);
+
+        if (humanized.tone) payload.tone = humanized.tone;
+        if (humanized.followUp) payload.followUp = humanized.followUp;
+      }
+    }
+  } catch (err) {
+    console.error("AI refinement failed:", err.message || err);
+    payload.ai = {
+      provider: "local",
+      model: null,
+      error: err.message || "Unknown OpenAI error",
+    };
+  }
+
+  payload.aiMode = payload.ai?.provider === "openai" ? "enhanced" : "local";
 
   payload.confidence = computeConfidence(payload.intent, parsed, insights, memory.length > 0);
 

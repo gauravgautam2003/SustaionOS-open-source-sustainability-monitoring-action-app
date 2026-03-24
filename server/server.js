@@ -1,4 +1,4 @@
-require("dotenv").config(); // ✅ ADD THIS
+require("dotenv").config({ path: require("path").join(__dirname, ".env") });
 
 const app = require("./app");
 const connectDB = require("./config/db");
@@ -7,20 +7,34 @@ const { PORT } = require("./config/env");
 const http = require("http");
 const { Server } = require("socket.io");
 
-connectDB();
+async function startServer() {
+  global.dbReady = false;
 
-const server = http.createServer(app);
+  try {
+    await connectDB();
+    global.dbReady = true;
+  } catch (err) {
+    console.error("Database unavailable, starting in degraded mode.");
+  }
 
-const io = new Server(server, {
-  cors: { origin: "*" },
-});
+  const server = http.createServer(app);
 
-global.io = io;
+  const io = new Server(server, {
+    cors: { origin: "*" },
+  });
 
-io.on("connection", (socket) => {
-  console.log("Client connected:", socket.id);
-});
+  global.io = io;
 
-server.listen(PORT, () => {
-  console.log(`🚀 Server running on ${PORT}`);
+  io.on("connection", (socket) => {
+    console.log("Client connected:", socket.id);
+  });
+
+  server.listen(PORT, () => {
+    console.log(`Server running on ${PORT}`);
+  });
+}
+
+startServer().catch((err) => {
+  console.error("Failed to start server:", err.message);
+  process.exit(1);
 });

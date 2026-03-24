@@ -2,8 +2,7 @@ import React, { useEffect, useState, useContext } from "react";
 import Card from "../ui/Card";
 import { ThemeContext } from "../../context/ThemeContext";
 import { getAuthToken } from "../../utils/auth";
-
-const API = "http://localhost:5000";
+import { apiUrl } from "../../utils/api";
 
 const PredictionCard = () => {
   const { darkMode } = useContext(ThemeContext);
@@ -22,7 +21,7 @@ const PredictionCard = () => {
           return;
         }
 
-        const res = await fetch(`${API}/api/ai/forecast`, {
+        const res = await fetch(apiUrl("/api/ai/forecast"), {
           method: "POST",
           headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         });

@@ -21,8 +21,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { getAuthToken } from "../utils/auth";
-
-const API = "http://localhost:5000";
+import { apiUrl } from "../utils/api";
 
 const emptyStats = {
   totalEnergy: 0,
@@ -84,16 +83,16 @@ const Profile = () => {
 
       try {
         const [profileRes, historyRes, scoreRes, alertsRes] = await Promise.all([
-          fetch(`${API}/api/user/profile`, {
+          fetch(apiUrl("/api/user/profile"), {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          fetch(`${API}/api/data/history`, {
+          fetch(apiUrl("/api/data/history"), {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          fetch(`${API}/api/score`, {
+          fetch(apiUrl("/api/score"), {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          fetch(`${API}/api/alerts`, {
+          fetch(apiUrl("/api/alerts"), {
             headers: { Authorization: `Bearer ${token}` },
           }),
         ]);
@@ -110,9 +109,7 @@ const Profile = () => {
         setUser(updatedUser);
         localStorage.setItem("user", JSON.stringify(updatedUser));
 
-        const historyArray = Array.isArray(historyJson)
-          ? historyJson
-          : historyJson.history || [];
+        const historyArray = Array.isArray(historyJson) ? historyJson : historyJson.history || [];
 
         const sortedHistory = [...historyArray].sort(
           (a, b) => new Date(b.createdAt || b.timestamp || 0) - new Date(a.createdAt || a.timestamp || 0)
@@ -214,7 +211,7 @@ const Profile = () => {
     const newMode = !darkMode;
     setDarkMode(newMode);
     try {
-      await fetch(`${API}/api/settings`, {
+      await fetch(apiUrl("/api/settings"), {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -236,7 +233,7 @@ const Profile = () => {
       const token = getAuthToken();
       const submittedData = { ...form, timestamp: new Date().toISOString() };
 
-      const res = await fetch(`${API}/api/data`, {
+      const res = await fetch(apiUrl("/api/data"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -270,7 +267,7 @@ const Profile = () => {
     setLoading(true);
 
     try {
-      const res = await fetch(`${API}/api/user/update`, {
+      const res = await fetch(apiUrl("/api/user/update"), {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -300,7 +297,7 @@ const Profile = () => {
   }
 
   return (
-    <div className="min-h-screen p-6 bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-white">
+    <div className="space-y-8">
       <Toaster />
 
       <div className="max-w-6xl mx-auto space-y-8">
@@ -413,13 +410,17 @@ const Profile = () => {
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-500 dark:text-gray-400">Energy Trend</span>
                   <span className={`font-semibold ${profilePulse.energyTrend > 0 ? "text-red-500" : "text-green-500"}`}>
-                    {profilePulse.energyTrend == null ? "Not enough data" : `${profilePulse.energyTrend > 0 ? "+" : ""}${profilePulse.energyTrend}%`}
+                    {profilePulse.energyTrend == null
+                      ? "Not enough data"
+                      : `${profilePulse.energyTrend > 0 ? "+" : ""}${profilePulse.energyTrend}%`}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-500 dark:text-gray-400">Water Trend</span>
                   <span className={`font-semibold ${profilePulse.waterTrend > 0 ? "text-red-500" : "text-green-500"}`}>
-                    {profilePulse.waterTrend == null ? "Not enough data" : `${profilePulse.waterTrend > 0 ? "+" : ""}${profilePulse.waterTrend}%`}
+                    {profilePulse.waterTrend == null
+                      ? "Not enough data"
+                      : `${profilePulse.waterTrend > 0 ? "+" : ""}${profilePulse.waterTrend}%`}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
@@ -438,26 +439,19 @@ const Profile = () => {
               </div>
               <div className="mt-4 space-y-3">
                 {alerts.filter((a) => a.status !== "RESOLVED").length === 0 ? (
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    No active alerts right now.
-                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">No active alerts right now.</p>
                 ) : (
                   alerts
                     .filter((a) => a.status !== "RESOLVED")
                     .slice(0, 3)
                     .map((alert) => (
-                      <div
-                        key={alert._id}
-                        className="rounded-xl border border-gray-200 dark:border-gray-800 p-3"
-                      >
+                      <div key={alert._id} className="rounded-xl border border-gray-200 dark:border-gray-800 p-3">
                         <div className="flex items-center justify-between gap-3">
                           <div>
                             <p className="font-semibold">{alert.building || "System"}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                              {alert.message}
-                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">{alert.message}</p>
                           </div>
-                          <span className="text-xs rounded-full px-2 py-1 bg-red-500/15 text-red-500">
+                          <span className="rounded-full bg-red-500/15 px-2 py-1 text-xs text-red-500">
                             {alert.severity || "LOW"}
                           </span>
                         </div>
@@ -505,17 +499,17 @@ const Profile = () => {
                 name="name"
                 value={profileForm.name}
                 onChange={handleProfileChange}
-                className="w-full p-3 rounded-lg bg-gray-100 dark:bg-gray-800 text-black dark:text-white placeholder-gray-500 dark:placeholder-gray-400 border border-gray-200 dark:border-gray-700"
+                className="w-full rounded-lg border border-gray-200 bg-gray-100 p-3 text-black placeholder-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
                 placeholder="Name"
               />
               <input
                 name="building"
                 value={profileForm.building}
                 onChange={handleProfileChange}
-                className="w-full p-3 rounded-lg bg-gray-100 dark:bg-gray-800 text-black dark:text-white placeholder-gray-500 dark:placeholder-gray-400 border border-gray-200 dark:border-gray-700"
+                className="w-full rounded-lg border border-gray-200 bg-gray-100 p-3 text-black placeholder-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
                 placeholder="Building"
               />
-              <button className="w-full py-3 rounded-lg bg-green-500 text-white font-medium">
+              <button className="w-full rounded-lg bg-green-500 py-3 font-medium text-white">
                 {loading ? "Saving..." : "Update Profile"}
               </button>
             </form>
@@ -532,23 +526,23 @@ const Profile = () => {
                 value={form.building}
                 onChange={handleChange}
                 placeholder="Building"
-                className="w-full p-3 border rounded-lg bg-white dark:bg-gray-800 text-black dark:text-white placeholder-gray-500 dark:placeholder-gray-400 border-gray-200 dark:border-gray-700"
+                className="w-full rounded-lg border border-gray-200 bg-white p-3 text-black placeholder-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
               />
               <input
                 name="location"
                 value={form.location}
                 onChange={handleChange}
                 placeholder="Location / Area"
-                className="w-full p-3 border rounded-lg bg-white dark:bg-gray-800 text-black dark:text-white placeholder-gray-500 dark:placeholder-gray-400 border-gray-200 dark:border-gray-700"
+                className="w-full rounded-lg border border-gray-200 bg-white p-3 text-black placeholder-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
               />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <input
                   name="water"
                   type="number"
                   value={form.water}
                   onChange={handleChange}
                   placeholder="Water"
-                  className="w-full p-3 border rounded-lg bg-white dark:bg-gray-800 text-black dark:text-white placeholder-gray-500 dark:placeholder-gray-400 border-gray-200 dark:border-gray-700"
+                  className="w-full rounded-lg border border-gray-200 bg-white p-3 text-black placeholder-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
                 />
                 <input
                   name="energy"
@@ -556,10 +550,10 @@ const Profile = () => {
                   value={form.energy}
                   onChange={handleChange}
                   placeholder="Energy"
-                  className="w-full p-3 border rounded-lg bg-white dark:bg-gray-800 text-black dark:text-white placeholder-gray-500 dark:placeholder-gray-400 border-gray-200 dark:border-gray-700"
+                  className="w-full rounded-lg border border-gray-200 bg-white p-3 text-black placeholder-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
                 />
               </div>
-              <button className="w-full py-3 bg-blue-500 text-white rounded-lg font-medium">
+              <button className="w-full rounded-lg bg-blue-500 py-3 font-medium text-white">
                 {loading ? "Submitting..." : "Submit Data"}
               </button>
             </form>
@@ -575,18 +569,14 @@ const Profile = () => {
               {history.map((item, index) => (
                 <div
                   key={item._id || index}
-                  className="flex justify-between items-center p-3 rounded-lg bg-gray-100 dark:bg-gray-800"
+                  className="flex items-center justify-between rounded-lg bg-gray-100 p-3 dark:bg-gray-800"
                 >
                   <div>
-                    <p className="font-semibold text-gray-900 dark:text-white">
-                      {item.building || "Building"}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {formatDateTime(item.timestamp || item.createdAt)}
-                    </p>
+                    <p className="font-semibold text-gray-900 dark:text-white">{item.building || "Building"}</p>
+                    <p className="text-xs text-gray-500">{formatDateTime(item.timestamp || item.createdAt)}</p>
                   </div>
 
-                  <div className="text-sm text-right">
+                  <div className="text-right text-sm">
                     <p className="text-blue-500">💧 {safeNumber(item.water)}</p>
                     <p className="text-green-500">⚡ {safeNumber(item.energy)}</p>
                   </div>

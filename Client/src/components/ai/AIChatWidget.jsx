@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useContext } from "react";
 import { MessageCircle, X } from "lucide-react";
 import { ThemeContext } from "../../context/ThemeContext";
 import { getAuthToken } from "../../utils/auth";
+import { apiUrl } from "../../utils/api";
 
 const suggestions = [
   "Why energy usage high?",
@@ -24,6 +25,7 @@ const AIChatWidget = () => {
   const messagesEndRef = useRef(null);
 
   const { darkMode } = useContext(ThemeContext);
+  const aiMode = [...messages].reverse().find((msg) => msg.sender === "ai" && msg.meta?.aiMode)?.meta?.aiMode || "local";
 
   // Scroll to bottom
   useEffect(() => {
@@ -56,7 +58,7 @@ const AIChatWidget = () => {
     try {
       const token = getAuthToken();
 
-      const res = await fetch("http://localhost:5000/api/ai/query", {
+      const res = await fetch(apiUrl("/api/ai/query"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -148,6 +150,16 @@ const AIChatWidget = () => {
               AI Assistant
             </h3>
 
+            <span
+              className={`text-[10px] px-2 py-1 rounded-full font-semibold uppercase tracking-wide ${
+                aiMode === "enhanced"
+                  ? "bg-emerald-500/15 text-emerald-600"
+                  : "bg-gray-500/15 text-gray-500"
+              }`}
+            >
+              {aiMode === "enhanced" ? "Enhanced AI" : "Local AI"}
+            </span>
+
             <div className="flex gap-2">
 
               <button
@@ -168,7 +180,7 @@ const AIChatWidget = () => {
 
                   setLoading(true);
                   try {
-                    const res = await fetch("http://localhost:5000/api/ai/forecast", {
+                    const res = await fetch(apiUrl("/api/ai/forecast"), {
                       method: "POST",
                       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
                     });
@@ -274,6 +286,26 @@ const AIChatWidget = () => {
                 {msg.sender === "ai" && typeof msg.meta?.confidence === "number" && (
                   <div className="mt-2 text-xs opacity-70">
                     Confidence: {msg.meta.confidence}%
+                  </div>
+                )}
+                {msg.sender === "ai" && msg.meta?.followUp && (
+                  <div className="mt-2 text-xs opacity-80">
+                    Follow-up: {msg.meta.followUp}
+                  </div>
+                )}
+                {msg.sender === "ai" && msg.meta?.ai?.provider && (
+                  <div className="mt-2 text-xs opacity-60">
+                    AI: {msg.meta.ai.provider} {msg.meta.ai.model ? `(${msg.meta.ai.model})` : ""}
+                  </div>
+                )}
+                {msg.sender === "ai" && msg.meta?.aiMode && (
+                  <div className="mt-2 text-xs opacity-60">
+                    Mode: {msg.meta.aiMode}
+                  </div>
+                )}
+                {msg.sender === "ai" && msg.meta?.ai?.error && (
+                  <div className="mt-2 text-xs opacity-70 text-amber-600">
+                    Enhanced AI temporarily unavailable. Using local fallback.
                   </div>
                 )}
               </div>

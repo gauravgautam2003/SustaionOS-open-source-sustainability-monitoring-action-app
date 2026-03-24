@@ -2,8 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import Card from "../components/ui/Card";
 import { getAuthToken } from "../utils/auth";
 import { Building2, Layers3, RefreshCcw, TrendingUp } from "lucide-react";
-
-const API = "http://localhost:5000";
+import { apiUrl } from "../utils/api";
 
 const Buildings = () => {
   const [history, setHistory] = useState([]);
@@ -18,7 +17,7 @@ const Buildings = () => {
         return;
       }
 
-      const res = await fetch(`${API}/api/data/history`, {
+      const res = await fetch(apiUrl("/api/data/history"), {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json().catch(() => []);
