@@ -1,36 +1,46 @@
-const Alert = require("../models/Alert");
+const alertService = require("../services/alert.service");
 
 exports.checkAndCreateAlert = async (latest, avgWater, avgEnergy, userId) => {
+    const created = [];
 
- let alerts = [];
+    if (!latest || !userId) return created;
 
- // 💧 WATER ALERT
- if (latest.water > avgWater * 1.3) {
-  alerts.push({
-   message: "🚨 Water spike detected! Possible leakage.",
-   type: "water",
-   severity: latest.water > avgWater * 1.6 ? "HIGH" : "MEDIUM"
-  });
- }
+    // Map severity to schema enum values
+    const mapSeverity = (sev) => {
+        if (!sev) return "LOW";
+        const s = sev.toString().toUpperCase();
+        if (s === "HIGH") return "HIGH";
+        if (s === "MEDIUM") return "MEDIUM";
+        return "LOW";
+    };
 
- // ⚡ ENERGY ALERT
- if (latest.energy > avgEnergy * 1.3) {
-  alerts.push({
-   message: "⚡ Energy spike detected! High load usage.",
-   type: "energy",
-   severity: latest.energy > avgEnergy * 1.6 ? "HIGH" : "MEDIUM"
-  });
- }
+    try {
+        // Water alert
+        if (typeof latest.water === "number" && typeof avgWater === "number" && latest.water > avgWater * 1.3) {
+            const sev = latest.water > avgWater * 1.6 ? "HIGH" : "MEDIUM";
+            const a = await alertService.createAlert({
+                userId,
+                building: latest.building || "Unknown",
+                message: "🚨 Water spike detected! Possible leakage.",
+                severity: mapSeverity(sev)
+            });
+            if (a) created.push(a);
+        }
 
- // ✅ SAVE ALL ALERTS
- for (const alert of alerts) {
-  await Alert.create({
-   user: userId,
-   message: alert.message,
-   type: alert.type,
-   severity: alert.severity
-  });
- }
+        // Energy alert
+        if (typeof latest.energy === "number" && typeof avgEnergy === "number" && latest.energy > avgEnergy * 1.3) {
+            const sev = latest.energy > avgEnergy * 1.6 ? "HIGH" : "MEDIUM";
+            const a = await alertService.createAlert({
+                userId,
+                building: latest.building || "Unknown",
+                message: "⚡ Energy spike detected! High load usage.",
+                severity: mapSeverity(sev)
+            });
+            if (a) created.push(a);
+        }
+    } catch (err) {
+        console.error("Alert Engine Error:", err?.message || err);
+    }
 
- return alerts; // return array (important for frontend)
+    return created;
 };

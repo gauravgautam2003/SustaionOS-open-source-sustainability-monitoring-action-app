@@ -2,10 +2,11 @@ import React from "react";
 import Card from "../ui/Card";
 
 const getStyle = (severity) => {
-  switch (severity) {
-    case "critical":
+  const s = (severity || "").toString().toUpperCase();
+  switch (s) {
+    case "HIGH":
       return "border-red-500 bg-red-500/10 text-red-400";
-    case "warning":
+    case "MEDIUM":
       return "border-yellow-500 bg-yellow-500/10 text-yellow-400";
     default:
       return "border-green-500 bg-green-500/10 text-green-400";
@@ -60,7 +61,9 @@ const AlertsPanel = ({ alerts = [] }) => {
             {/* SEVERITY TAG */}
             <div className="mt-3">
               <span className="text-xs px-2 py-1 rounded bg-black/20">
-                {alert.severity}
+                {alert.severity
+                  ? `${alert.severity.charAt(0)}${alert.severity.slice(1).toLowerCase()}`
+                  : "Low"}
               </span>
             </div>
 

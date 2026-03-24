@@ -25,6 +25,32 @@ const sendData = async (req, res) => {
 
     if (global.io) global.io.emit("newData", saved);
 
+    // Run anomaly detection using recent history
+    try {
+      const recent = await Data.find({ userId: req.user._id }).sort({ timestamp: -1 }).limit(20);
+      const detection = detect(saved.water, saved.energy, recent);
+      if (detection && detection.status) {
+        const mapSeverity = (s) => {
+          if (!s) return "LOW";
+          const up = s.toString().toUpperCase();
+          if (up === "HIGH") return "HIGH";
+          if (up === "MEDIUM") return "MEDIUM";
+          return "LOW";
+        };
+
+        const alert = await alertService.createAlert({
+          userId: req.user._id,
+          building: saved.building || "Unknown",
+          message: `${detection.reason}${detection.score ? ` (score:${detection.score})` : ""}`,
+          severity: mapSeverity(detection.severity),
+        });
+
+        if (alert && global.io) global.io.emit("newAlert", alert);
+      }
+    } catch (err) {
+      console.error("Post-save detection error:", err);
+    }
+
     return res.status(201).json({ success: true, data: saved });
 
   } catch (err) {

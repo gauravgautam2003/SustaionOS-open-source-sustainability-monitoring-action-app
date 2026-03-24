@@ -31,3 +31,18 @@ exports.updateSettings = async (req, res) => {
     res.status(500).json({ msg: "Error saving settings" });
   }
 };
+
+// DELETE / reset to defaults
+exports.deleteSettings = async (req, res) => {
+  try {
+    await Settings.findOneAndDelete({ user: req.user._id });
+
+    // recreate with defaults so frontend always gets an object
+    const defaults = await Settings.create({ user: req.user._id });
+
+    res.json({ success: true, settings: defaults });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ msg: "Error resetting settings" });
+  }
+};

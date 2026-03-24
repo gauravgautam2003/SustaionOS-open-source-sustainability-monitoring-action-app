@@ -7,6 +7,7 @@ import AlertsPanel from "../components/dashboard/AlertsPanel";
 import SuggestionsPanel from "../components/dashboard/SuggestionsPanel";
 import DashboardSkeleton from "../components/skeleton/DashboardSkeleton";
 import AIChatWidget from "../components/ai/AIChatWidget";
+import PredictionCard from "../components/dashboard/PredictionCard";
 import { ThemeContext } from "../context/ThemeContext";
 import { io } from "socket.io-client";
 
@@ -134,6 +135,13 @@ const Dashboard = () => {
 
       {/* Latest 7 entries chart */}
       <EnergyWaterCharts data={history.slice(0, 7)} />
+
+      {/* Quick Forecast */}
+      <div className="grid grid-cols-12 gap-6">
+        <div className="col-span-12 md:col-span-6">
+          <PredictionCard />
+        </div>
+      </div>
 
       {/* Alerts & Suggestions */}
       <div className="grid grid-cols-12 gap-6">

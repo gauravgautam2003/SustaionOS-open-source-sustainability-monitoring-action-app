@@ -155,6 +155,45 @@ const AIChatWidget = () => {
                 Clear
               </button>
 
+              <button
+                onClick={async () => {
+                  // fetch forecast and append result as AI message
+                  const user = JSON.parse(localStorage.getItem("user") || "null");
+                  if (!user?.token) {
+                    setMessages(prev => [...prev, { sender: "ai", text: "Unauthorized — please login to fetch forecast." }].slice(-20));
+                    return;
+                  }
+
+                  setLoading(true);
+                  try {
+                    const res = await fetch("http://localhost:5000/api/ai/forecast", {
+                      method: "POST",
+                      headers: { Authorization: `Bearer ${user.token}`, "Content-Type": "application/json" },
+                    });
+
+                    if (!res.ok) {
+                      const body = await res.json().catch(() => ({}));
+                      setMessages(prev => [...prev, { sender: "ai", text: body.msg || "Failed to fetch forecast." }].slice(-20));
+                      return;
+                    }
+
+                    const json = await res.json();
+                    const p = json.prediction || json.prediction || {};
+                    const text = `Forecast — Next hour: Energy ${p.predictedEnergyNextHour || p.predictedEnergyAvg || "N/A"}, Water ${p.predictedWaterNextHour || p.predictedWaterAvg || "N/A"}\nNext day: Energy ${p.predictedEnergyNextDay || "N/A"}, Water ${p.predictedWaterNextDay || "N/A"}`;
+
+                    setMessages(prev => [...prev, { sender: "ai", text }].slice(-20));
+                  } catch (err) {
+                    console.error("Forecast fetch error:", err);
+                    setMessages(prev => [...prev, { sender: "ai", text: "Error fetching forecast." }].slice(-20));
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                className="text-xs px-2 py-1 rounded bg-blue-500 text-white hover:bg-blue-600"
+              >
+                Forecast
+              </button>
+
               <X
                 className={`cursor-pointer hover:text-red-500 transition
                 ${darkMode ? "text-gray-300" : "text-gray-700"}`}

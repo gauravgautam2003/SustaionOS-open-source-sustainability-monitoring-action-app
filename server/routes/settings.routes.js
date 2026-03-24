@@ -8,4 +8,6 @@ router.get("/",auth,controller.getSettings)
 
 router.put("/",auth,controller.updateSettings)
 
+router.delete("/", auth, controller.deleteSettings)
+
 module.exports=router

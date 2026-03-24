@@ -21,6 +21,12 @@ const Settings = () => {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
         });
+        if (res.status === 401) {
+          // not authenticated
+          setMsg("❌ Unauthorized. Please login.");
+          setLoading(false);
+          return;
+        }
 
         const data = await res.json();
 
@@ -38,7 +44,7 @@ const Settings = () => {
           darkMode: data.darkMode ?? false,
         });
 
-        setDarkMode(data.darkMode);
+        setDarkMode(!!data.darkMode);
       } catch (err) {
         console.error(err);
         setMsg("❌ Failed to load settings");
@@ -60,6 +66,13 @@ const Settings = () => {
     setSaving(true);
     setMsg("");
 
+    // simple validation
+    if (!settings?.name || !settings?.email) {
+      setMsg("❌ Name and Email are required");
+      setSaving(false);
+      return;
+    }
+
     try {
       const res = await fetch(API, {
         method: "PUT",
@@ -72,11 +85,58 @@ const Settings = () => {
 
       const data = await res.json();
 
+      if (res.status === 401) {
+        setMsg("❌ Unauthorized. Please login.");
+        setSaving(false);
+        return;
+      }
+
       if (!res.ok) throw new Error(data.msg || "Error saving");
 
       setMsg("✅ Settings saved successfully");
     } catch (err) {
       setMsg("❌ Failed to save settings");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Reset settings to server defaults (DELETE)
+  const resetSettings = async () => {
+    if (!window.confirm("Reset settings to defaults?")) return;
+    setSaving(true);
+    try {
+      const res = await fetch(API, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.msg || "Reset failed");
+
+      // server returns settings
+      if (data.settings) {
+        setSettings({
+          name: data.settings.name || "",
+          email: data.settings.email || "",
+          aiSuggestions: data.settings.aiSuggestions ?? true,
+          predictiveInsights: data.settings.predictiveInsights ?? true,
+          energyLimit: data.settings.energyLimit ?? 500,
+          waterLimit: data.settings.waterLimit ?? 200,
+          energyAlerts: data.settings.energyAlerts ?? true,
+          waterAlerts: data.settings.waterAlerts ?? true,
+          weeklyReports: data.settings.weeklyReports ?? false,
+          sustainabilityGoal: data.settings.sustainabilityGoal ?? 20,
+          darkMode: data.settings.darkMode ?? false,
+        });
+        setDarkMode(!!data.settings.darkMode);
+      }
+
+      setMsg("✅ Settings reset to defaults");
+    } catch (err) {
+      console.error(err);
+      setMsg("❌ Failed to reset settings");
     } finally {
       setSaving(false);
     }
@@ -217,6 +277,14 @@ const Settings = () => {
         className="bg-primary px-6 py-3 rounded-xl font-semibold hover:scale-105 transition"
       >
         {saving ? "Saving..." : "Save Changes"}
+      </button>
+
+      <button
+        onClick={resetSettings}
+        disabled={saving}
+        className="ml-3 bg-red-500 px-4 py-3 rounded-xl font-semibold hover:scale-105 transition text-white"
+      >
+        Reset Defaults
       </button>
 
       {msg && <p className="text-center mt-2">{msg}</p>}
