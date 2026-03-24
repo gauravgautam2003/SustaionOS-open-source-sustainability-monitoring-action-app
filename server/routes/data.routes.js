@@ -16,6 +16,8 @@ router.get("/", async (req, res) => {
         water: 0,
         building: "No Data Available",
         location: "",
+        latitude: null,
+        longitude: null,
       });
     }
 
@@ -24,6 +26,8 @@ router.get("/", async (req, res) => {
       water: latest.water,
       building: latest.building,
       location: latest.location || "",
+      latitude: latest.latitude ?? null,
+      longitude: latest.longitude ?? null,
       timestamp: latest.createdAt,
     });
   } catch (err) {

@@ -1,8 +1,23 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Card from "../components/ui/Card";
 import { getAuthToken } from "../utils/auth";
-import { Building2, Layers3, RefreshCcw, TrendingUp } from "lucide-react";
+import { Building2, ExternalLink, Layers3, MapPin, RefreshCcw, TrendingUp } from "lucide-react";
 import { apiUrl } from "../utils/api";
+
+const toNumber = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const formatCoord = (value) => {
+  const parsed = toNumber(value);
+  return parsed == null ? "-" : parsed.toFixed(5);
+};
+
+const mapLinks = (lat, lng) => ({
+  google: `https://www.google.com/maps?q=${lat},${lng}`,
+  osm: `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=18/${lat}/${lng}`,
+});
 
 const Buildings = () => {
   const [history, setHistory] = useState([]);
@@ -37,11 +52,15 @@ const Buildings = () => {
   const buildings = useMemo(() => {
     const map = history.reduce((acc, item) => {
       const key = item.building || "Unknown";
-      if (!acc[key]) acc[key] = { building: key, energy: 0, water: 0, count: 0, locations: new Set() };
+      if (!acc[key]) acc[key] = { building: key, energy: 0, water: 0, count: 0, locations: new Set(), latitude: null, longitude: null };
       acc[key].energy += Number(item.energy || 0);
       acc[key].water += Number(item.water || 0);
       acc[key].count += 1;
       if (item.location) acc[key].locations.add(item.location);
+      if (toNumber(item.latitude) != null && toNumber(item.longitude) != null) {
+        acc[key].latitude = toNumber(item.latitude);
+        acc[key].longitude = toNumber(item.longitude);
+      }
       return acc;
     }, {});
 
@@ -127,6 +146,11 @@ const Buildings = () => {
                         Locations: {item.locations.join(", ")}
                       </p>
                     ) : null}
+                    {item.latitude != null && item.longitude != null ? (
+                      <p className="mt-1 text-xs text-cyan-600 dark:text-cyan-400">
+                        {formatCoord(item.latitude)}, {formatCoord(item.longitude)}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
 
@@ -144,6 +168,29 @@ const Buildings = () => {
                     <p className="mt-1 font-semibold text-gray-900 dark:text-white">{item.score}%</p>
                   </div>
                 </div>
+
+                {item.latitude != null && item.longitude != null ? (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <a
+                      href={mapLinks(item.latitude, item.longitude).google}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-2 rounded-full border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 dark:border-gray-700 dark:text-gray-200"
+                    >
+                      <ExternalLink size={12} />
+                      Open in Google Maps
+                    </a>
+                    <a
+                      href={mapLinks(item.latitude, item.longitude).osm}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-2 rounded-full border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 dark:border-gray-700 dark:text-gray-200"
+                    >
+                      <MapPin size={12} />
+                      OpenStreetMap
+                    </a>
+                  </div>
+                ) : null}
               </div>
             </Card>
           ))}

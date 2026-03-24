@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
+import { useNavigate } from "react-router-dom";
 import {
   Bell,
   Gauge,
@@ -27,6 +28,7 @@ import { apiUrl } from "../utils/api";
 const socket = io(apiUrl(""));
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [history, setHistory] = useState([]);
   const [latest, setLatest] = useState(null);
@@ -130,6 +132,8 @@ const Dashboard = () => {
   const criticalAlertsCount = alerts.filter(
     (a) => (a.severity || "").toUpperCase() === "HIGH" && (a.status || "OPEN") !== "RESOLVED"
   ).length;
+  const latestWithLocation =
+    history.find((item) => item.location || item.latitude != null || item.longitude != null) || latest || null;
 
   const energyInsight =
     latest.energy > 400
@@ -144,7 +148,15 @@ const Dashboard = () => {
     {
       label: "Latest Building",
       value: latest.building || "Unknown",
-      meta: latest.location || "Location not set",
+      meta: [
+        latest.location || latestWithLocation?.location || "Location not set",
+        latest.sensorId ? `Sensor ${latest.sensorId}` : null,
+        latestWithLocation?.latitude != null && latestWithLocation?.longitude != null
+          ? `${Number(latestWithLocation.latitude).toFixed(4)}, ${Number(latestWithLocation.longitude).toFixed(4)}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" · "),
       icon: Gauge,
     },
     {
@@ -232,6 +244,13 @@ const Dashboard = () => {
             >
               <TrendingUp size={16} />
               Forecast
+            </button>
+            <button
+              onClick={() => navigate("/locations")}
+              className="inline-flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-700 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200"
+            >
+              <Gauge size={16} />
+              View map
             </button>
           </div>
         </div>

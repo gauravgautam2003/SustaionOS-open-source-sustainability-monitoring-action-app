@@ -160,6 +160,124 @@ const ExecutiveInsightsPanel = ({ period = "week", compact = false }) => {
             </div>
           </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className={metricCardClass}>
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                <Cpu size={16} />
+                ML Engine
+              </div>
+              <div className="mt-3 text-xl font-bold text-gray-900 dark:text-white">
+                {data.model?.name || data.mlStatus?.label || "JS Fallback"}
+              </div>
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                {data.model?.version ? `v${data.model.version}` : data.mlStatus?.source || "local"}
+              </p>
+            </div>
+
+            <div className={metricCardClass}>
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                <Target size={16} />
+                Confidence
+              </div>
+              <div className="mt-3 text-3xl font-bold text-gray-900 dark:text-white">
+                {data.confidence || 0}%
+              </div>
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                {data.signalBreakdown?.usageConsistency != null
+                  ? `Consistency ${data.signalBreakdown.usageConsistency}%`
+                  : "Model certainty"}
+              </p>
+            </div>
+
+            <div className={metricCardClass}>
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                <AlertTriangle size={16} />
+                Root Cause
+              </div>
+              <div className="mt-3 text-xl font-bold text-gray-900 dark:text-white">
+                {data.rootCause || "Mixed operational drift"}
+              </div>
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                {data.signalBreakdown?.offHoursRatio != null
+                  ? `Off-hours usage ${data.signalBreakdown.offHoursRatio}%`
+                  : "Explainable signal"}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className={metricCardClass}>
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                <BadgeCheck size={16} />
+                Active Alerts
+              </div>
+              <div className="mt-3 text-3xl font-bold text-gray-900 dark:text-white">
+                {data.activeAlertsCount ?? 0}
+              </div>
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                {data.criticalAlertsCount ? `${data.criticalAlertsCount} critical unresolved` : "No critical unresolved"}
+              </p>
+            </div>
+
+            <div className={metricCardClass}>
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                <ArrowUpRight size={16} />
+                Model Health
+              </div>
+              <div className="mt-3 text-xl font-bold text-gray-900 dark:text-white">
+                {data.signalBreakdown?.usageConsistency != null
+                  ? `${data.signalBreakdown.usageConsistency}% consistency`
+                  : "Stable"}
+              </div>
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                {data.model?.version ? `Model ${data.model.version}` : "Latest model output"}
+              </p>
+            </div>
+          </div>
+
+          {data.whatIf ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className={metricCardClass}>
+                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                  <ArrowUpRight size={16} />
+                  What-if Savings
+                </div>
+                <div className="mt-3 text-3xl font-bold text-gray-900 dark:text-white">
+                  Rs. {data.whatIf.projectedSavings || 0}
+                </div>
+                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                  if you reduce waste by the suggested amount
+                </p>
+              </div>
+
+              <div className={metricCardClass}>
+                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                  <Leaf size={16} />
+                  Projected Score
+                </div>
+                <div className="mt-3 text-3xl font-bold text-gray-900 dark:text-white">
+                  {data.whatIf.projectedScore || 0}%
+                </div>
+                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                  estimated after efficiency actions
+                </p>
+              </div>
+
+              <div className={metricCardClass}>
+                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                  <Target size={16} />
+                  Risk Improvement
+                </div>
+                <div className="mt-3 text-3xl font-bold text-gray-900 dark:text-white">
+                  {data.whatIf.riskImprovement || "N/A"}
+                </div>
+                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                  reduction scenario over the next {data.whatIf.horizonDays || 30} days
+                </p>
+              </div>
+            </div>
+          ) : null}
+
           <div
             className={`rounded-xl border p-4 ${
               darkMode ? "border-gray-800 bg-gray-950/50" : "border-gray-200 bg-gray-50"
@@ -175,6 +293,18 @@ const ExecutiveInsightsPanel = ({ period = "week", compact = false }) => {
             <p className="mt-3 text-sm text-gray-500 dark:text-gray-500">
               {data.summary}
             </p>
+            {data.confidenceReasons?.length ? (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {data.confidenceReasons.map((reason, index) => (
+                  <span
+                    key={index}
+                    className="inline-flex rounded-full border border-gray-200 px-3 py-1 text-xs text-gray-600 dark:border-gray-800 dark:text-gray-300"
+                  >
+                    {reason}
+                  </span>
+                ))}
+              </div>
+            ) : null}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

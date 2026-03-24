@@ -1,4 +1,5 @@
 const Data = require("../models/Data");
+const Alert = require("../models/Alert");
 const scoreService = require("./sustainabilityScore.engine");
 const mlBridge = require("./mlBridge.service");
 
@@ -47,6 +48,10 @@ const aggregateMetrics = (records = []) => {
   const avgWater = count ? totals.water / count : 0;
 
   return { ...totals, count, avgEnergy, avgWater, latest };
+};
+
+const latestWithLocation = (records = []) => {
+  return records.find((item) => item.location) || records[0] || null;
 };
 
 const buildBuildingBenchmarks = (records = []) => {
@@ -146,6 +151,17 @@ const normalizeRisk = (score, remoteRisk) => {
   return score >= 80 ? "Low" : score >= 60 ? "Moderate" : score >= 40 ? "High" : "Critical";
 };
 
+const normalizeRootCause = (remote) => {
+  const rootCause = (remote?.rootCause || "").toString().trim();
+  if (rootCause) return rootCause;
+  if (remote?.anomalies?.length) {
+    const metric = remote.anomalies[0]?.metric;
+    if (metric === "water") return "Likely leakage or uncontrolled water draw";
+    if (metric === "energy") return "Peak load or equipment cycle drift";
+  }
+  return "Mixed operational drift";
+};
+
 const buildFallbackInsights = ({ current, previous, windowDays, scoreSnapshot, records, period }) => {
   const buildingBenchmarks = buildBuildingBenchmarks(records);
   const currentDailyEnergy = current.count ? current.energy / Math.max(1, windowDays) : 0;
@@ -169,6 +185,7 @@ const buildFallbackInsights = ({ current, previous, windowDays, scoreSnapshot, r
   const monthlySavings = Math.max(0, Math.min(rawMonthlySavings, savingsCap));
   const riskLevel = normalizeRisk(score, scoreSnapshot?.risk);
   const latest = current.latest;
+  const locationSource = latestWithLocation(records);
   const actions = buildActions({
     energyDelta: energyDelta || 0,
     waterDelta: waterDelta || 0,
@@ -195,6 +212,13 @@ const buildFallbackInsights = ({ current, previous, windowDays, scoreSnapshot, r
         ? "Tune consumption thresholds and review the largest spike first."
         : "Keep current settings and continue monitoring for drift.";
 
+  const rootCause =
+    waterDelta > 10 && (current.latest?.water || 0) > current.avgWater * 1.15
+      ? "Likely leakage or uncontrolled water draw"
+      : energyDelta > 10 && (current.latest?.energy || 0) > current.avgEnergy * 1.15
+        ? "Peak load or equipment cycle drift"
+        : "Mixed operational drift";
+
   return {
     period: period || "week",
     windowDays,
@@ -212,11 +236,11 @@ const buildFallbackInsights = ({ current, previous, windowDays, scoreSnapshot, r
     },
     latestReading: scoreSnapshot?.usage
       ? {
-          building: latest?.building || "Unknown",
-          location: latest?.location || "",
+          building: locationSource?.building || latest?.building || "Unknown",
+          location: locationSource?.location || latest?.location || "",
           energy: toNumber(scoreSnapshot.usage.energy),
           water: toNumber(scoreSnapshot.usage.water),
-          timestamp: latest?.timestamp || latest?.createdAt || null,
+          timestamp: locationSource?.timestamp || latest?.timestamp || latest?.createdAt || null,
         }
       : null,
     previous: {
@@ -236,9 +260,15 @@ const buildFallbackInsights = ({ current, previous, windowDays, scoreSnapshot, r
     estimatedCost,
     monthlySavingsPotential: monthlySavings,
     summary,
+    rootCause,
     nextBestAction,
     priorityActions: actions,
     buildingBenchmarks,
+    signalBreakdown: {
+      energyTrend: Number((energyDelta || 0).toFixed(2)),
+      waterTrend: Number((waterDelta || 0).toFixed(2)),
+      usageConsistency: score,
+    },
   };
 };
 
@@ -261,6 +291,16 @@ exports.getExecutiveInsights = async (userId, period = "week") => {
   const current = aggregateMetrics(currentRecords);
   const previous = aggregateMetrics(previousRecords);
   const scoreSnapshot = await scoreService.calculateScore(userId);
+  const activeAlertsCount = await Alert.countDocuments({ userId, status: { $ne: "RESOLVED" } });
+  const criticalAlertsCount = await Alert.countDocuments({
+    userId,
+    severity: "HIGH",
+    status: { $ne: "RESOLVED" },
+  });
+  const latestActiveAlert = await Alert.findOne({ userId, status: { $ne: "RESOLVED" } }).sort({
+    time: -1,
+    createdAt: -1,
+  });
 
   const currentDailyEnergy = current.count ? current.energy / Math.max(1, windowDays) : 0;
   const previousDailyEnergy = previous.count ? previous.energy / Math.max(1, windowDays) : 0;
@@ -285,7 +325,7 @@ exports.getExecutiveInsights = async (userId, period = "week") => {
     const buildingBenchmarks = Array.isArray(remote.hotspots) && remote.hotspots.length > 0
       ? remote.hotspots
       : buildBuildingBenchmarks(currentRecords.length ? currentRecords : records);
-    const score = Number.isFinite(Number(remote.score)) ? Number(remote.score) : fallbackScore;
+    const score = Number.isFinite(Number(scoreSnapshot?.score)) ? Number(scoreSnapshot.score) : fallbackScore;
     const riskLevel = normalizeRisk(score, remote.riskLevel);
     const actions = Array.isArray(remote.recommendations) && remote.recommendations.length > 0
       ? remote.recommendations.map((message, index) => ({
@@ -302,17 +342,25 @@ exports.getExecutiveInsights = async (userId, period = "week") => {
           avgWater: current.avgWater,
         });
 
-    const summary = remote.summary || `ML analysis suggests ${riskLevel.toLowerCase()} risk over the current window.`;
+    const alertPressure = activeAlertsCount > 0 ? `${activeAlertsCount} active alert${activeAlertsCount > 1 ? "s" : ""}` : "no active alerts";
+    const summary =
+      remote.summary ||
+      `ML analysis suggests ${riskLevel.toLowerCase()} risk over the current window with ${alertPressure}.`;
     const nextBestAction =
       remote.recommendations?.[0] ||
       (riskLevel === "Critical"
         ? "Escalate immediately and inspect the active load or leakage source."
         : "Continue monitoring and address the highest-ranked hotspot.");
+    const rootCause =
+      (latestActiveAlert?.rootCause || "").trim() ||
+      remote.rootCause ||
+      normalizeRootCause(remote);
 
     return {
       period,
       windowDays,
       totalRecords: current.count,
+      model: remote.model || null,
       mlStatus: {
         active: true,
         source: "python-ml",
@@ -350,12 +398,17 @@ exports.getExecutiveInsights = async (userId, period = "week") => {
       estimatedCost: Math.round(current.energy * ENERGY_RATE + current.water * WATER_RATE),
       monthlySavingsPotential: Math.max(0, Math.round((remote.forecast?.predictedEnergyNextDay || 0) * 0.1)),
       summary,
+      rootCause,
       nextBestAction,
       priorityActions: actions.slice(0, 4),
       buildingBenchmarks,
       confidence: Number.isFinite(Number(remote.confidence)) ? Number(remote.confidence) : 80,
       anomalies: Array.isArray(remote.anomalies) ? remote.anomalies : [],
       forecast: remote.forecast || null,
+      signalBreakdown: remote.signalBreakdown || null,
+      confidenceReasons: Array.isArray(remote.confidenceReasons) ? remote.confidenceReasons : [],
+      activeAlertsCount,
+      criticalAlertsCount,
     };
   }
 

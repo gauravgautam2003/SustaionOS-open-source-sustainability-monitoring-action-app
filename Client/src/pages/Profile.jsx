@@ -48,7 +48,20 @@ const Profile = () => {
   const { darkMode, setDarkMode } = useContext(ThemeContext);
   const navigate = useNavigate();
 
-  const [form, setForm] = useState({ building: "", location: "", water: "", energy: "" });
+  const [form, setForm] = useState({
+    building: "",
+    location: "",
+    latitude: "",
+    longitude: "",
+    sensorId: "",
+    sensorName: "",
+    sensorType: "manual",
+    protocol: "manual",
+    batteryLevel: "",
+    signalQuality: "",
+    water: "",
+    energy: "",
+  });
   const [profileForm, setProfileForm] = useState({ name: "", building: "" });
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
@@ -243,6 +256,10 @@ const Profile = () => {
           ...form,
           water: Number(form.water),
           energy: Number(form.energy),
+          latitude: form.latitude === "" ? null : Number(form.latitude),
+          longitude: form.longitude === "" ? null : Number(form.longitude),
+          batteryLevel: form.batteryLevel === "" ? null : Number(form.batteryLevel),
+          signalQuality: form.signalQuality === "" ? null : Number(form.signalQuality),
         }),
       });
 
@@ -252,7 +269,20 @@ const Profile = () => {
       toast.success("Data submitted");
 
       setHistory((prev) => [submittedData, ...prev].slice(0, 6));
-      setForm({ building: "", location: "", water: "", energy: "" });
+      setForm({
+        building: "",
+        location: "",
+        latitude: "",
+        longitude: "",
+        sensorId: "",
+        sensorName: "",
+        sensorType: "manual",
+        protocol: "manual",
+        batteryLevel: "",
+        signalQuality: "",
+        water: "",
+        energy: "",
+      });
     } catch {
       toast.error("Server error");
     } finally {
@@ -535,6 +565,76 @@ const Profile = () => {
                 placeholder="Location / Area"
                 className="w-full rounded-lg border border-gray-200 bg-white p-3 text-black placeholder-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
               />
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <input
+                  name="latitude"
+                  type="number"
+                  step="any"
+                  value={form.latitude}
+                  onChange={handleChange}
+                  placeholder="Latitude (optional)"
+                  className="w-full rounded-lg border border-gray-200 bg-white p-3 text-black placeholder-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+                />
+                <input
+                  name="longitude"
+                  type="number"
+                  step="any"
+                  value={form.longitude}
+                  onChange={handleChange}
+                  placeholder="Longitude (optional)"
+                  className="w-full rounded-lg border border-gray-200 bg-white p-3 text-black placeholder-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+                />
+              </div>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <input
+                  name="sensorId"
+                  value={form.sensorId}
+                  onChange={handleChange}
+                  placeholder="Sensor ID (optional)"
+                  className="w-full rounded-lg border border-gray-200 bg-white p-3 text-black placeholder-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+                />
+                <input
+                  name="sensorName"
+                  value={form.sensorName}
+                  onChange={handleChange}
+                  placeholder="Sensor Name (optional)"
+                  className="w-full rounded-lg border border-gray-200 bg-white p-3 text-black placeholder-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+                />
+              </div>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <input
+                  name="sensorType"
+                  value={form.sensorType}
+                  onChange={handleChange}
+                  placeholder="Sensor Type"
+                  className="w-full rounded-lg border border-gray-200 bg-white p-3 text-black placeholder-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+                />
+                <input
+                  name="protocol"
+                  value={form.protocol}
+                  onChange={handleChange}
+                  placeholder="Protocol"
+                  className="w-full rounded-lg border border-gray-200 bg-white p-3 text-black placeholder-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+                />
+              </div>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <input
+                  name="batteryLevel"
+                  type="number"
+                  value={form.batteryLevel}
+                  onChange={handleChange}
+                  placeholder="Battery %"
+                  className="w-full rounded-lg border border-gray-200 bg-white p-3 text-black placeholder-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+                />
+                <input
+                  name="signalQuality"
+                  type="number"
+                  value={form.signalQuality}
+                  onChange={handleChange}
+                  placeholder="Signal quality %"
+                  className="w-full rounded-lg border border-gray-200 bg-white p-3 text-black placeholder-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+                />
+              </div>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <input
                   name="water"

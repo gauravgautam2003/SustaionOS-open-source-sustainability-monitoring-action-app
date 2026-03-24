@@ -8,9 +8,10 @@ const PageWrapper = ({ children }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-100 dark:bg-darkBg text-gray-900 dark:text-white transition-colors duration-300">
+    <div className="relative flex min-h-screen flex-col overflow-x-hidden bg-[#f4f7fb] text-gray-900 transition-colors duration-300 dark:bg-[#060b16] dark:text-white">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.12),transparent_28%),radial-gradient(circle_at_top_right,rgba(14,165,233,0.12),transparent_24%),radial-gradient(circle_at_bottom_left,rgba(16,185,129,0.12),transparent_24%)]" />
       {/* Sidebar + Content */}
-      <div className="flex flex-1 w-full">
+      <div className="relative z-10 flex flex-1 w-full">
         <Sidebar isOpen={isOpen} setIsOpen={setIsOpen} />
 
         <div className="flex-1 flex flex-col">

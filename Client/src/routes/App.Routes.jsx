@@ -11,7 +11,9 @@ import Notifications from "../pages/Notifications";
 import Incidents from "../pages/Incidents";
 import Impact from "../pages/Impact";
 import Buildings from "../pages/Buildings";
+import Locations from "../pages/Locations";
 import Recommendations from "../pages/Recommendations";
+import Sensors from "../pages/Sensors";
 
 import Login from "../pages/Login";
 import Register from "../pages/Register";
@@ -120,11 +122,33 @@ const AppRoutes = () => {
       />
 
       <Route
+        path="/locations"
+        element={
+          <ProtectedRoute>
+            <PageWrapper>
+              <Locations />
+            </PageWrapper>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
         path="/recommendations"
         element={
           <ProtectedRoute>
             <PageWrapper>
               <Recommendations />
+            </PageWrapper>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/sensors"
+        element={
+          <ProtectedRoute>
+            <PageWrapper>
+              <Sensors />
             </PageWrapper>
           </ProtectedRoute>
         }

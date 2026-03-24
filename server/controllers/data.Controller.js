@@ -3,6 +3,33 @@ const detect = require("../services/detection.service").detect;
 const alertService = require("../services/alert.service");
 const notificationService = require("../services/notification.service");
 const scoreService = require("../services/sustainabilityScore.engine");
+const SensorDevice = require("../models/SensorDevice");
+
+const syncSensorHeartbeat = async (userId, payload) => {
+  const sensorId = (payload?.sensorId || "").toString().trim();
+  if (!sensorId) return null;
+
+  const update = {
+    lastSeen: new Date(),
+    status: payload.batteryLevel != null && Number(payload.batteryLevel) < 20 ? "DEGRADED" : "ONLINE",
+  };
+
+  if (payload.sensorName) update.name = payload.sensorName;
+  if (payload.building) update.building = payload.building;
+  if (payload.location) update.location = payload.location;
+  if (payload.sensorType) update.sensorType = payload.sensorType;
+  if (payload.protocol) update.protocol = payload.protocol;
+  if (payload.batteryLevel != null) update.batteryLevel = Number(payload.batteryLevel);
+  if (payload.signalQuality != null) update.signalQuality = Number(payload.signalQuality);
+  if (payload.latitude != null) update.latitude = Number(payload.latitude);
+  if (payload.longitude != null) update.longitude = Number(payload.longitude);
+
+  return SensorDevice.findOneAndUpdate(
+    { userId, sensorId },
+    { $set: update, $setOnInsert: { userId, sensorId } },
+    { new: true, upsert: true }
+  );
+};
 
 const sendData = async (req, res) => {
   try {
@@ -10,7 +37,20 @@ const sendData = async (req, res) => {
       return res.status(401).json({ success: false, msg: "Unauthorized" });
     }
 
-    const { building, location = "", water, energy } = req.body;
+    const {
+      building,
+      location = "",
+      water,
+      energy,
+      sensorId = "",
+      sensorName = "",
+      sensorType = "manual",
+      protocol = "manual",
+      batteryLevel = null,
+      signalQuality = null,
+      latitude = null,
+      longitude = null,
+    } = req.body;
 
     if (!building || water == null || energy == null) {
       return res.status(400).json({ success: false, msg: "All fields required" });
@@ -20,16 +60,37 @@ const sendData = async (req, res) => {
       userId: req.user._id,
       building,
       location,
+      sensorId,
+      sensorName,
+      sensorType,
+      protocol,
+      batteryLevel,
+      signalQuality,
+      latitude,
+      longitude,
       water: Number(water),
       energy: Number(energy),
       timestamp: new Date(),
+    });
+
+    await syncSensorHeartbeat(req.user._id, {
+      sensorId,
+      sensorName,
+      building,
+      location,
+      sensorType,
+      protocol,
+      batteryLevel,
+      signalQuality,
+      latitude,
+      longitude,
     });
 
     if (global.io) global.io.emit("newData", saved);
 
     try {
       const recent = await Data.find({ userId: req.user._id }).sort({ timestamp: -1 }).limit(20);
-      const detection = detect(saved.water, saved.energy, recent);
+      const detection = await detect(saved.water, saved.energy, recent);
       if (detection && detection.status) {
         const baseline = recent.slice(1, 11);
         const avg = (field) => {
