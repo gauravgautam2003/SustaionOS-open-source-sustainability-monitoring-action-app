@@ -5,6 +5,42 @@
  */
 
 const intents = {
+ telemetry: [
+  "submit",
+  "save data",
+  "voice data",
+  "record data",
+  "add data",
+  "telemetry",
+  "building",
+  "energy",
+  "water",
+  "location",
+  "sensor"
+ ],
+
+ profile: [
+  "my profile",
+  "update profile",
+  "profile",
+  "name",
+  "building",
+  "call me",
+  "my name is",
+  "mera naam"
+ ],
+
+ voice: [
+  "voice",
+  "speak",
+  "spoken",
+  "listen",
+  "mic",
+  "microphone",
+  "hindi",
+  "hinglish"
+ ],
+
  water: [
   "water","leak","usage","litre","liter","consumption","pipeline","tank","flow"
  ],
@@ -85,7 +121,7 @@ exports.detectIntent = (question) => {
     score++;
   });
 
-  // choose intent with highest keyword match
+ // choose intent with highest keyword match, but prefer user-facing modes first when tied
   if(score > maxMatch){
    maxMatch = score;
    detected = intent;

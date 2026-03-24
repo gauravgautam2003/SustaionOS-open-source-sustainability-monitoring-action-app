@@ -11,6 +11,8 @@ const {
   OPENAI_API_KEY,
   OPENAI_MODEL,
   OPENAI_CHAT_URL,
+  OLLAMA_URL,
+  OLLAMA_MODEL,
   GEMINI_API_KEY,
   GEMINI_MODEL,
   GEMINI_URL,
@@ -276,8 +278,8 @@ const buildHumanConversationReply = ({ question, memoryState = {}, memoryTurns =
 
   if (/\bjoke\b|\bfunny\b|\blaugh\b/.test(q)) {
     return say(
-      "Why did the sensor stay calm? Because it had great signal quality.",
-      "Want a serious tip or another joke?"
+      "Why don’t smart systems ever panic? Because they keep their cool until the next update.",
+      "Want another joke or a serious tip?"
     );
   }
 
@@ -391,9 +393,9 @@ const buildCasualConversationReply = ({ question, memory, latest, insights, user
 
   if (/\bjoke\b|\bfunny\b/.test(q)) {
     return {
-      reply: `I would make a joke about a leak, but I don't want it to go over your head. Better to catch it early.`,
+      reply: `Why don’t assistants ever get tired? Because they run on questions and curiosity.`,
       tone: "light",
-      followUp: "Want a serious tip for reducing waste instead?",
+      followUp: "Want another joke or a real tip for today?",
     };
   }
 
@@ -726,7 +728,16 @@ const parseJsonSafe = (text) => {
   }
 };
 
-const buildConversationPrompt = ({ question, payload, insights, latest, alerts, memoryTurns = [], memoryState = {} }) => {
+const buildConversationPrompt = ({
+  question,
+  payload,
+  insights,
+  latest,
+  alerts,
+  memoryTurns = [],
+  memoryState = {},
+  understanding = null,
+}) => {
   const safeInsights = {
     score: insights?.score ?? 0,
     riskLevel: insights?.riskLevel || "Low",
@@ -759,14 +770,29 @@ const buildConversationPrompt = ({ question, payload, insights, latest, alerts, 
   const memoryStyle = memoryState?.style || {};
   const memoryProfile = memoryState?.profile || {};
   const memoryTopics = Array.isArray(memoryState?.topics) ? memoryState.topics.slice(0, 5).map((t) => `${t.name}:${t.count}`) : [];
+  const safeUnderstanding = understanding
+    ? {
+        intent: understanding.intent || "general_help",
+        tone: understanding.tone || "friendly",
+        language: understanding.language || "hinglish",
+        entities: understanding.entities || {},
+        rewrittenQuestion: understanding.rewrittenQuestion || "",
+        memorySummary: understanding.memorySummary || "",
+        topics: understanding.topics || [],
+      }
+    : null;
 
   return [
     `Question: ${question}`,
+    `Intent guess: ${safeUnderstanding?.intent || payload?.intent || "general_help"}`,
+    `Tone guess: ${safeUnderstanding?.tone || "friendly"}`,
+    `Rewritten query: ${safeUnderstanding?.rewrittenQuestion || "N/A"}`,
+    `Extracted entities: ${JSON.stringify(safeUnderstanding?.entities || {})}`,
     `Current response plan: ${JSON.stringify(payload)}`,
     `Latest reading: ${JSON.stringify(safeLatest)}`,
     `Insights: ${JSON.stringify(safeInsights)}`,
     `Recent alerts: ${JSON.stringify(safeAlerts)}`,
-    `User memory summary: ${memorySummary || "No stored memory yet."}`,
+    `User memory summary: ${safeUnderstanding?.memorySummary || memorySummary || "No stored memory yet."}`,
     `User memory profile: ${JSON.stringify(memoryProfile)}`,
     `Preferred style: ${JSON.stringify(memoryStyle)}`,
     `Top remembered topics: ${memoryTopics.join(", ") || "None"}`,
@@ -789,7 +815,7 @@ const buildConversationPrompt = ({ question, payload, insights, latest, alerts, 
 
 const getProviderPreference = () => {
   const provider = String(AI_PROVIDER_MODE || "auto").toLowerCase();
-  if (provider === "gemini" || provider === "openai" || provider === "local") {
+  if (provider === "gemini" || provider === "openai" || provider === "ollama" || provider === "local") {
     return provider;
   }
   return "auto";
@@ -798,10 +824,17 @@ const getProviderPreference = () => {
 const providerMessage = (provider, model) => ({
   provider,
   model,
-  label: provider === "gemini" ? `gemini (${model})` : provider === "openai" ? `openai (${model})` : "local",
+  label:
+    provider === "gemini"
+      ? `gemini (${model})`
+      : provider === "openai"
+        ? `openai (${model})`
+        : provider === "ollama"
+          ? `ollama (${model})`
+          : "local",
 });
 
-const humanizeWithOpenAI = async ({ prompt }) => {
+const humanizeWithOpenAI = async ({ prompt, signal } = {}) => {
   if (!OPENAI_API_KEY || typeof fetch !== "function") return null;
   if (Date.now() < openaiRetryUntil) return null;
 
@@ -811,13 +844,14 @@ const humanizeWithOpenAI = async ({ prompt }) => {
       Authorization: `Bearer ${OPENAI_API_KEY}`,
       "Content-Type": "application/json",
     },
+    signal,
     body: JSON.stringify({
       model: OPENAI_MODEL,
       messages: [
         {
           role: "system",
           content:
-            "You are SustainOS AI, a friendly sustainability copilot. Keep answers concise, natural, grounded in the provided data, and short. Always return valid JSON only.",
+    "You are SustainOS AI, a warm general-purpose conversational assistant with sustainability expertise. Answer naturally, like a helpful human. Use the provided data only when the question is about the campus or operations. For casual, personal, or unrelated questions, answer directly and naturally. Always return valid JSON only.",
         },
         { role: "user", content: prompt },
       ],
@@ -851,7 +885,7 @@ const humanizeWithOpenAI = async ({ prompt }) => {
   };
 };
 
-const humanizeWithGemini = async ({ prompt }) => {
+const humanizeWithGemini = async ({ prompt, signal } = {}) => {
   if (!GEMINI_API_KEY || typeof fetch !== "function") return null;
   if (Date.now() < geminiRetryUntil) return null;
 
@@ -862,12 +896,13 @@ const humanizeWithGemini = async ({ prompt }) => {
       headers: {
         "Content-Type": "application/json",
       },
+      signal,
       body: JSON.stringify({
         systemInstruction: {
           parts: [
             {
               text:
-                "You are SustainOS AI, a friendly sustainability copilot. Keep answers concise, natural, grounded in the provided data, and short. Always return valid JSON only.",
+    "You are SustainOS AI, a warm general-purpose conversational assistant with sustainability expertise. Answer naturally, like a helpful human. Use the provided data only when the question is about the campus or operations. For casual, personal, or unrelated questions, answer directly and naturally. Always return valid JSON only.",
             },
           ],
         },
@@ -913,47 +948,193 @@ const humanizeWithGemini = async ({ prompt }) => {
   };
 };
 
-const humanizeWithLLM = async ({ question, payload, insights, latest, alerts, memory, memoryState }) => {
+const humanizeWithOllama = async ({ prompt, signal } = {}) => {
+  if (!OLLAMA_URL || typeof fetch !== "function") return null;
+
+  const response = await fetch(OLLAMA_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    signal,
+    body: JSON.stringify({
+      model: OLLAMA_MODEL,
+      stream: false,
+      format: "json",
+      keep_alive: "30m",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are SustainOS AI. Answer like a natural human assistant. Keep replies concise, warm, and direct. If the question is casual, answer casually. If it is about campus data, use the supplied context. Return valid JSON only.",
+        },
+        { role: "user", content: prompt },
+      ],
+      options: {
+        temperature: 0.25,
+        top_p: 0.9,
+        num_ctx: 1024,
+        num_predict: 96,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Ollama request failed with status ${response.status}`);
+  }
+
+  const json = await response.json();
+  const rawText = json?.message?.content || "";
+  const parsed = parseJsonSafe(rawText);
+
+  if (!parsed || !parsed.reply) {
+    throw new Error("Ollama response did not return valid JSON");
+  }
+
+  return {
+    reply: String(parsed.reply).trim(),
+    tone: parsed.tone || "friendly",
+    followUp: parsed.follow_up || parsed.followUp || "",
+    provider: "ollama",
+    model: OLLAMA_MODEL,
+  };
+};
+
+const humanizeWithLLM = async ({
+  question,
+  payload,
+  insights,
+  latest,
+  alerts,
+  memory,
+  memoryState,
+  understanding,
+  promptOverride,
+  timeoutMs = 5000,
+}) => {
   if (typeof fetch !== "function") return null;
 
-  const prompt = buildConversationPrompt({
-    question,
-    payload,
-    insights,
-    latest,
-    alerts,
-    memoryTurns: memory,
-    memoryState,
-  });
+  const prompt =
+    promptOverride ||
+    buildConversationPrompt({
+      question,
+      payload,
+      insights,
+      latest,
+      alerts,
+      memoryTurns: memory,
+      memoryState,
+      understanding,
+    });
 
   const mode = getProviderPreference();
   const attempts = [];
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), Math.max(1500, timeoutMs || 5000));
 
+  if (mode === "ollama" || mode === "auto") {
+    attempts.push(() => humanizeWithOllama({ prompt, signal: controller.signal }));
+  }
   if (mode === "gemini" || mode === "auto") {
-    attempts.push(() => humanizeWithGemini({ prompt }));
+    attempts.push(() => humanizeWithGemini({ prompt, signal: controller.signal }));
   }
   if (mode === "openai" || mode === "auto") {
-    attempts.push(() => humanizeWithOpenAI({ prompt }));
+    attempts.push(() => humanizeWithOpenAI({ prompt, signal: controller.signal }));
   }
 
-  for (const attempt of attempts) {
-    try {
-      const result = await attempt();
-      if (result?.reply) return result;
-    } catch (err) {
-      const msg = String(err?.message || "");
-      if (/429|rate limit|quota|insufficient/i.test(msg)) {
-        if (msg.toLowerCase().includes("gemini")) {
-          geminiRetryUntil = Date.now() + GEMINI_RETRY_COOLDOWN_MS;
-        } else {
-          openaiRetryUntil = Date.now() + OPENAI_RETRY_COOLDOWN_MS;
+  try {
+    for (const attempt of attempts) {
+      try {
+        const result = await attempt();
+        if (result?.reply) return result;
+      } catch (err) {
+        if (err?.name === "AbortError") {
+          return null;
         }
+        const msg = String(err?.message || "");
+        if (/429|rate limit|quota|insufficient/i.test(msg)) {
+          if (msg.toLowerCase().includes("gemini")) {
+            geminiRetryUntil = Date.now() + GEMINI_RETRY_COOLDOWN_MS;
+          } else {
+            openaiRetryUntil = Date.now() + OPENAI_RETRY_COOLDOWN_MS;
+          }
+        }
+        console.error(`${msg.includes("Gemini") ? "Gemini" : "OpenAI"} refinement failed:`, err.message || err);
       }
-      console.error(`${msg.includes("Gemini") ? "Gemini" : "OpenAI"} refinement failed:`, err.message || err);
     }
+  } finally {
+    clearTimeout(timeout);
   }
 
   return null;
+};
+
+const warmupLocalModel = async () => {
+  if (!OLLAMA_URL || typeof fetch !== "function") return null;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+
+  try {
+    await humanizeWithOllama({
+      prompt:
+        'Reply with valid JSON only: {"reply":"ready","tone":"friendly","follow_up":""}',
+      signal: controller.signal,
+    });
+  } catch (err) {
+    const message = String(err?.message || "");
+    if (!/AbortError/i.test(message)) {
+      console.error("Ollama warmup failed:", err.message || err);
+    }
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  return null;
+};
+
+const buildGeneralConversationPrompt = ({ question, memoryTurns = [], memoryState = {}, understanding = null }) => {
+  const safeUnderstanding = understanding
+    ? {
+        intent: understanding.intent || "general_chat",
+        tone: understanding.tone || "friendly",
+        language: understanding.language || "hinglish",
+        entities: understanding.entities || {},
+        rewrittenQuestion: understanding.rewrittenQuestion || "",
+      }
+    : null;
+
+  const memorySummary = memoryState?.summary || "";
+  const memoryStyle = memoryState?.style || {};
+  const memoryProfile = memoryState?.profile || {};
+
+  return [
+    `Question: ${question}`,
+    `Intent guess: ${safeUnderstanding?.intent || "general_chat"}`,
+    `Tone guess: ${safeUnderstanding?.tone || "friendly"}`,
+    `Rewritten query: ${safeUnderstanding?.rewrittenQuestion || "N/A"}`,
+    `Entities: ${JSON.stringify(safeUnderstanding?.entities || {})}`,
+    `Memory summary: ${memorySummary || "No stored memory yet."}`,
+    `Memory profile: ${JSON.stringify(memoryProfile)}`,
+    `Preferred style: ${JSON.stringify(memoryStyle)}`,
+    `Recent conversation:\n${formatMemory(memoryTurns.slice(-2)) || "No prior conversation."}`,
+    "",
+    "Return ONLY valid JSON with this shape:",
+    JSON.stringify(
+      {
+        reply: "friendly natural language reply",
+        tone: "friendly|direct|analytical|supportive|light",
+        follow_up: "optional short follow-up question",
+      },
+      null,
+      2
+    ),
+    "Rules:",
+    "- Be conversational and human.",
+    "- Do not mention sustainability unless relevant.",
+    "- Answer general questions directly.",
+    "- Keep it short and natural.",
+  ].join("\n");
 };
 
 const computeConfidence = (intent, parsed, insights, hasHistory) => {
@@ -1008,13 +1189,101 @@ const parseQuery = (q) => {
   };
 };
 
+const escapeRegExp = (value = "") => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const extractLabeledValue = (text = "", labels = [], { numeric = false } = {}) => {
+  const source = String(text || "");
+  const labelGroup = labels.map((label) => escapeRegExp(label)).join("|");
+  const valuePattern = numeric ? "(-?\\d+(?:\\.\\d+)?)" : "([^,.;\\n|]+)";
+  const regex = new RegExp(`(?:${labelGroup})\\s*(?:is|hai|=|:|का|की|में|me|par|pe)?\\s*${valuePattern}`, "i");
+  const match = source.match(regex);
+  return match?.[1] ? normalizeName(match[1]) : "";
+};
+
+const detectTone = (question = "", parsed = {}, intent = "") => {
+  const q = String(question).toLowerCase();
+  if (parsed.hasAction || /\b(asap|urgent|critical|immediately|now|help|please help)\b/.test(q)) return "urgent";
+  if (parsed.hasCompare || parsed.hasAlert || parsed.hasBuilding || intent === "diagnosis" || intent === "action_plan") {
+    return "analytical";
+  }
+  if (parsed.hasSmallTalk || /\b(hi|hello|hey|thanks|thank you|joke|how are you)\b/.test(q)) return "friendly";
+  return "supportive";
+};
+
+const extractEntities = (question = "", parsed = {}) => {
+  const q = String(question || "");
+  const lower = q.toLowerCase();
+  const entity = {
+    building: extractLabeledValue(q, ["building", "site", "campus", "floor", "property", "building name", "bldg"]),
+    location: extractLabeledValue(q, ["location", "area", "zone", "place", "map", "लोकेशन", "स्थान"]),
+    sensorId: extractLabeledValue(q, ["sensor id", "sensorid", "sensor", "device id", "id"], { numeric: false }),
+    sensorName: extractLabeledValue(q, ["sensor name", "device name", "name"]),
+    sensorType: extractLabeledValue(q, ["sensor type", "type"]),
+    protocol: extractLabeledValue(q, ["protocol", "mode"]),
+    energy: extractLabeledValue(q, ["energy", "electricity", "power", "kwh", "load", "units", "bijli", "ऊर्जा"], {
+      numeric: true,
+    }),
+    water: extractLabeledValue(q, ["water", "paani", "litre", "liter", "usage", "consumption", "पानी"], {
+      numeric: true,
+    }),
+    latitude: extractLabeledValue(q, ["latitude", "lat", "अक्षांश"], { numeric: true }),
+    longitude: extractLabeledValue(q, ["longitude", "lng", "lon", "देशांतर"], { numeric: true }),
+    batteryLevel: extractLabeledValue(q, ["battery", "battery level", "battery%", "बैटरी"], { numeric: true }),
+    signalQuality: extractLabeledValue(q, ["signal", "signal quality", "quality", "सिग्नल"], { numeric: true }),
+    timeframe: parsed.timeframe || "current",
+    comparisonTarget: parsed.comparisonTarget || "",
+  };
+
+  if (!entity.building) {
+    const buildingMatch = q.match(
+      /\b(?:for|in|at|of|on|from)\s+([A-Za-z0-9][A-Za-z0-9\s.'-]{2,48})(?:\s+(?:building|campus|site|floor|property))?/i
+    );
+    if (buildingMatch?.[1]) entity.building = normalizeName(buildingMatch[1]);
+  }
+
+  if (!entity.location && /(?:location|area|zone|map)\s*(?:is|hai|=|:)?\s*([A-Za-z0-9][A-Za-z0-9\s.'-]{1,48})/i.test(q)) {
+    entity.location = normalizeName(q.match(/(?:location|area|zone|map)\s*(?:is|hai|=|:)?\s*([A-Za-z0-9][A-Za-z0-9\s.'-]{1,48})/i)?.[1] || "");
+  }
+
+  return entity;
+};
+
+const rewriteQuestion = ({ question = "", intent = "general_help", parsed = {}, entities = {}, memoryState = {} } = {}) => {
+  const pieces = [];
+  const name = normalizeName(memoryState?.profile?.preferredName || memoryState?.profile?.displayName || "");
+  if (name) pieces.push(`User: ${name}`);
+  pieces.push(`Intent: ${intent}`);
+  if (entities.building) pieces.push(`Building: ${entities.building}`);
+  if (entities.location) pieces.push(`Location: ${entities.location}`);
+  if (entities.sensorId) pieces.push(`Sensor: ${entities.sensorId}`);
+  if (entities.timeframe) pieces.push(`Timeframe: ${entities.timeframe}`);
+  if (parsed.hasCompare && entities.comparisonTarget) pieces.push(`Compare target: ${entities.comparisonTarget}`);
+  pieces.push(`Question: ${String(question || "").replace(/\s+/g, " ").trim()}`);
+  return pieces.join(" | ");
+};
+
+const buildUnderstanding = ({ question = "", intent = "general_help", parsed = {}, memoryState = {} } = {}) => {
+  const entities = extractEntities(question, parsed);
+  const tone = detectTone(question, parsed, intent);
+  const rewrittenQuestion = rewriteQuestion({ question, intent, parsed, entities, memoryState });
+  const memorySummary = memoryState?.summary || "";
+
+  return {
+    intent,
+    tone,
+    language: detectLanguageStyle(question),
+    entities,
+    rewrittenQuestion,
+    memorySummary,
+    topics: extractTopics(question, intent),
+  };
+};
+
 const generateAnswer = async ({ question, userId, context = {} }) => {
   const qRaw = (question || "").toString();
   const q = qRaw.toLowerCase().trim();
   const detectedIntent = intentEngine.detectIntent ? intentEngine.detectIntent(qRaw) : "unknown";
   const parsed = parseQuery(q);
-
-  addToMemory(userId, "user", qRaw);
   const conversationState = await loadConversationState(userId);
   const memory = getMemory(userId);
   const identity = resolveDisplayName({ user: context?.user || null, memoryState: conversationState || {}, question: qRaw });
@@ -1023,11 +1292,20 @@ const generateAnswer = async ({ question, userId, context = {} }) => {
     ...((conversationState?.recentTurns || []).slice(-6)),
     ...memory,
   ].slice(-8);
+  const understanding = buildUnderstanding({
+    question: qRaw,
+    intent: detectedIntent,
+    parsed,
+    memoryState: conversationState || {},
+  });
+
+  addToMemory(userId, "user", qRaw);
 
   if (!userId) {
     return buildStructuredAnswer({
       intent: "unauthorized",
       answer: "Unauthorized: user context missing.",
+      understanding,
     });
   }
 
@@ -1038,6 +1316,7 @@ const generateAnswer = async ({ question, userId, context = {} }) => {
       tone: "friendly",
       followUp: "Want me to remember anything else?",
       parsed,
+      understanding,
     });
 
     payload.aiMode = "local";
@@ -1055,6 +1334,93 @@ const generateAnswer = async ({ question, userId, context = {} }) => {
       language: detectLanguageStyle(qRaw),
       displayName: identity.displayName || explicitPreferredName,
       preferredName: explicitPreferredName,
+    });
+
+    return { ...payload, conversation: getMemory(userId).slice(-6), insights: null };
+  }
+
+  const hasAppSignal =
+    parsed.hasEnergy ||
+    parsed.hasWater ||
+    parsed.hasCarbon ||
+    parsed.hasScore ||
+    parsed.hasAlert ||
+    parsed.hasCompare ||
+    parsed.hasAction ||
+    parsed.hasBuilding ||
+    parsed.hasCurrent ||
+    parsed.hasSuggestion;
+  const appQueryPattern =
+    /facility|maintenance|compliance|audit|budget|occupancy|hvac|iot|sensor|workflow|sla|uptime|downtime|asset|procurement|industry|telemetry|profile|voice|energy|water|carbon|score|building|campus|location|map|forecast|predict|report|alert|compare|action|save|optimize|improve/i;
+  const generalConversationCandidate = !hasAppSignal && !appQueryPattern.test(q);
+
+  if (generalConversationCandidate) {
+    const quickPrompt = buildGeneralConversationPrompt({
+      question: qRaw,
+      memoryTurns: memoryTurns.slice(-2),
+      memoryState: conversationState || {},
+      understanding,
+    });
+
+    let humanized = null;
+    try {
+      humanized = await humanizeWithLLM({
+        question: qRaw,
+        payload: { intent: "general_chat" },
+        insights: null,
+        latest: null,
+        alerts: [],
+        memory: memoryTurns,
+        memoryState: conversationState || {},
+        understanding,
+        promptOverride: quickPrompt,
+        timeoutMs: 15000,
+      });
+    } catch (err) {
+      console.error("General chat refinement failed:", err.message || err);
+    }
+
+    if (!humanized?.reply) {
+      const localGeneral = buildHumanConversationReply({
+        question: qRaw,
+        memoryState: conversationState || {},
+        memoryTurns,
+        user: context?.user || null,
+      });
+      humanized = {
+        reply: localGeneral?.reply || "I can help with casual chat, questions, or campus data if you want.",
+        tone: localGeneral?.tone || "friendly",
+        followUp: localGeneral?.followUp || "Want to ask something else?",
+        provider: "local",
+        model: null,
+      };
+    }
+
+    const payload = buildStructuredAnswer({
+      intent: "general_chat",
+      answer: humanized.reply,
+      tone: humanized.tone || "friendly",
+      followUp: humanized.followUp || "Want to ask something else?",
+      parsed,
+      understanding,
+    });
+
+    payload.ai = providerMessage(humanized.provider, humanized.model);
+    payload.aiMode = payload.ai?.provider && payload.ai.provider !== "local" ? "enhanced" : "local";
+    payload.confidence = computeConfidence(payload.intent, parsed, null, memoryTurns.length > 0);
+
+    addToMemory(userId, "assistant", payload.answer || JSON.stringify(payload));
+    await persistConversationTurn({
+      userId,
+      question: qRaw,
+      answer: payload.answer || "",
+      intent: payload.intent || "general_chat",
+      tone: payload.tone || "friendly",
+      followUp: payload.followUp || "",
+      topics: extractTopics(qRaw, payload.intent),
+      language: detectLanguageStyle(qRaw),
+      displayName: identity.displayName,
+      preferredName: identity.preferredName,
     });
 
     return { ...payload, conversation: getMemory(userId).slice(-6), insights: null };
@@ -1079,6 +1445,7 @@ const generateAnswer = async ({ question, userId, context = {} }) => {
   const isFollowUp = q.length < 25 && memoryTurns.length > 1;
   const comparison = summarizeComparison(insights);
   const topBuilding = insights?.buildingBenchmarks?.[0];
+
   const humanReply = buildHumanConversationReply({
     question: qRaw,
     memoryState: conversationState || {},
@@ -1093,6 +1460,7 @@ const generateAnswer = async ({ question, userId, context = {} }) => {
       tone: humanReply.tone || "friendly",
       followUp: humanReply.followUp || "",
       parsed,
+      understanding,
     });
 
     payload.aiMode = "local";
@@ -1130,6 +1498,7 @@ const generateAnswer = async ({ question, userId, context = {} }) => {
       tone: casualReply.tone || "friendly",
       followUp: casualReply.followUp || "",
       parsed,
+      understanding,
     });
 
     payload.aiMode = "local";
@@ -1168,6 +1537,7 @@ const generateAnswer = async ({ question, userId, context = {} }) => {
       tone: industryReply.tone || "friendly",
       followUp: industryReply.followUp || "",
       parsed,
+      understanding,
     });
 
     payload.aiMode = "local";
@@ -1222,6 +1592,7 @@ const generateAnswer = async ({ question, userId, context = {} }) => {
         savings: insights?.monthlySavingsPotential ?? 0,
       },
       parsed,
+      understanding,
     });
   } else if (detectedIntent === "prediction" || q.includes("forecast") || q.includes("predict")) {
     payload = buildStructuredAnswer({
@@ -1231,6 +1602,7 @@ const generateAnswer = async ({ question, userId, context = {} }) => {
       forecast: prediction,
       suggestion: "Use this to plan peak-load shifting before the next interval.",
       parsed,
+      understanding,
     });
   } else if (detectedIntent === "compare" || q.includes("compare") || q.includes("vs") || q.includes("versus")) {
     payload = buildStructuredAnswer({
@@ -1239,6 +1611,7 @@ const generateAnswer = async ({ question, userId, context = {} }) => {
       comparison,
       insights,
       parsed,
+      understanding,
     });
   } else if (detectedIntent === "action" || q.includes("what should i do") || q.includes("next best action") || q.includes("action") || q.includes("fix")) {
     payload = buildStructuredAnswer({
@@ -1247,6 +1620,7 @@ const generateAnswer = async ({ question, userId, context = {} }) => {
       actionPlan: insights?.priorityActions || [],
       riskLevel: insights?.riskLevel || "Low",
       parsed,
+      understanding,
     });
   } else if (detectedIntent === "report" || q.includes("report") || q.includes("summary") || q.includes("overview") || q.includes("dashboard")) {
     payload = buildStructuredAnswer({
@@ -1260,6 +1634,7 @@ const generateAnswer = async ({ question, userId, context = {} }) => {
         building: topBuilding?.building || null,
       },
       parsed,
+      understanding,
     });
   } else if (parsed.hasSuggestion || detectedIntent === "suggestion" || q.includes("suggest") || q.includes("tip") || q.includes("optimize") || q.includes("improve")) {
     payload = buildStructuredAnswer({
@@ -1277,6 +1652,7 @@ const generateAnswer = async ({ question, userId, context = {} }) => {
         message,
       })),
       parsed,
+      understanding,
     });
   } else if (detectedIntent === "score" || q.includes("score") || q.includes("sustainability score") || q.includes("efficiency")) {
     payload = buildStructuredAnswer({
@@ -1289,6 +1665,7 @@ const generateAnswer = async ({ question, userId, context = {} }) => {
         savings: insights?.monthlySavingsPotential ?? 0,
       },
       parsed,
+      understanding,
     });
   } else if (detectedIntent === "carbon" || q.includes("carbon") || q.includes("co2") || q.includes("footprint")) {
     payload = buildStructuredAnswer({
@@ -1300,6 +1677,7 @@ const generateAnswer = async ({ question, userId, context = {} }) => {
         savings: insights?.monthlySavingsPotential ?? 0,
       },
       parsed,
+      understanding,
     });
   } else if (detectedIntent === "building" || q.includes("building") || q.includes("site") || q.includes("worst")) {
     payload = buildStructuredAnswer({
@@ -1309,6 +1687,7 @@ const generateAnswer = async ({ question, userId, context = {} }) => {
         : "No building benchmark available yet.",
       benchmark: insights?.buildingBenchmarks || [],
       parsed,
+      understanding,
     });
   } else if (detectedIntent === "cause" || q.includes("why") || q.includes("cause") || q.includes("root") || q.includes("problem")) {
     payload = buildStructuredAnswer({
@@ -1321,6 +1700,7 @@ const generateAnswer = async ({ question, userId, context = {} }) => {
           : null,
       },
       parsed,
+      understanding,
     });
   } else if (detectedIntent === "alert" || q.includes("alert")) {
     payload = buildStructuredAnswer({
@@ -1335,6 +1715,7 @@ const generateAnswer = async ({ question, userId, context = {} }) => {
         status: a.status,
       })),
       parsed,
+      understanding,
     });
   } else if (parsed.hasSmallTalk && !parsed.hasEnergy && !parsed.hasWater && !parsed.hasCarbon && !parsed.hasScore) {
     payload = buildStructuredAnswer({
@@ -1342,6 +1723,7 @@ const generateAnswer = async ({ question, userId, context = {} }) => {
       answer:
         "Hey! I can help with live sustainability questions, forecasts, comparisons, alerts, reports, and next actions. Ask me in a natural way and I'll figure it out.",
       parsed,
+      understanding,
     });
   } else if (isFollowUp) {
     const lastAssistant = [...memoryTurns].reverse().find((m) => m.role === "assistant");
@@ -1349,6 +1731,7 @@ const generateAnswer = async ({ question, userId, context = {} }) => {
       intent: "follow_up",
       answer: `Following up on the previous point: ${lastAssistant?.text || "I can expand on the current analytics or recommend the top action."}`,
       parsed,
+      understanding,
     });
   } else {
     const hints = [];
@@ -1369,6 +1752,7 @@ const generateAnswer = async ({ question, userId, context = {} }) => {
           : `Ask me about score, carbon footprint, building comparison, forecast, or actions.`,
       hints,
       parsed,
+      understanding,
     });
   }
 
@@ -1390,6 +1774,7 @@ const generateAnswer = async ({ question, userId, context = {} }) => {
         alerts,
         memory: memoryTurns,
         memoryState: conversationState,
+        understanding,
       });
 
       if (humanized?.reply) {
@@ -1409,7 +1794,7 @@ const generateAnswer = async ({ question, userId, context = {} }) => {
     };
   }
 
-  if (!payload.ai?.provider || payload.ai.provider !== "openai") {
+  if (!payload.ai?.provider || payload.ai.provider === "local") {
     const localHuman = humanizeLocalReply({
       payload,
       parsed,
@@ -1429,7 +1814,7 @@ const generateAnswer = async ({ question, userId, context = {} }) => {
     }
   }
 
-  payload.aiMode = payload.ai?.provider === "openai" ? "enhanced" : "local";
+  payload.aiMode = payload.ai?.provider && payload.ai.provider !== "local" ? "enhanced" : "local";
 
   payload.confidence = computeConfidence(payload.intent, parsed, insights, memoryTurns.length > 0);
 
@@ -1450,4 +1835,4 @@ const generateAnswer = async ({ question, userId, context = {} }) => {
   return { ...payload, conversation: getMemory(userId).slice(-6), insights };
 };
 
-module.exports = { generateAnswer, getMemory };
+module.exports = { generateAnswer, getMemory, warmupLocalModel };

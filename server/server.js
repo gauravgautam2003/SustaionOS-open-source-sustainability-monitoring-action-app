@@ -2,7 +2,8 @@ require("dotenv").config({ path: require("path").join(__dirname, ".env") });
 
 const app = require("./app");
 const connectDB = require("./config/db");
-const { PORT } = require("./config/env");
+const { PORT, AI_PROVIDER, OLLAMA_URL } = require("./config/env");
+const { warmupLocalModel } = require("./services/aiLLM.service");
 
 const http = require("http");
 const { Server } = require("socket.io");
@@ -31,6 +32,11 @@ async function startServer() {
 
   server.listen(PORT, () => {
     console.log(`Server running on ${PORT}`);
+    if ((AI_PROVIDER === "ollama" || AI_PROVIDER === "auto") && OLLAMA_URL) {
+      warmupLocalModel().catch((err) => {
+        console.error("Ollama warmup skipped:", err?.message || err);
+      });
+    }
   });
 }
 

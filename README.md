@@ -16,6 +16,27 @@ The system combines data analytics, anomaly detection, and AI decision engines t
 
 Core functionality does not depend on any external AI service. If `OPENAI_API_KEY` is configured, the chat assistant uses an optional natural-language enhancement layer. If the key is absent, the local rule-based AI stays fully functional.
 
+## Local AI Setup
+
+Recommended default for hackathon/demo:
+
+1. Start the Python ML service:
+   ```powershell
+   python ml_service/server.py
+   ```
+2. Start the full stack with one command:
+   ```powershell
+   .\start-dev.ps1
+   ```
+3. If you want a stronger local AI brain without cloud quota, install Ollama and run:
+   ```powershell
+ollama pull llama3.2:1b
+   ollama serve
+   ```
+4. Keep `AI_PROVIDER=auto` in `server/.env` so the app will try Ollama first, then cloud providers if configured, then local fallback.
+
+The app will still work without Ollama or any external AI key.
+
 This project was developed during a hackathon by Team ByteCoder.
 
 ---

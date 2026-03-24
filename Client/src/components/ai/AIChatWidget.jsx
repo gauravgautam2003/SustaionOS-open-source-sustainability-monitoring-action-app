@@ -18,10 +18,10 @@ import { getAuthToken } from "../../utils/auth";
 import { apiUrl } from "../../utils/api";
 
 const seedSuggestions = [
-  "What can you do for my campus?",
-  "How do I reduce operating cost?",
+  "What can you do?",
+  "Tell me a joke",
+  "How are you?",
   "Why energy usage high?",
-  "How can I improve facility uptime?",
 ];
 
 const ASSISTANT_MODES = {
@@ -207,7 +207,7 @@ const draftProgress = (draft, missing) => {
 
 const initialMessage = {
   sender: "ai",
-  text: "Hi, I can chat casually, explain campus data, handle voice updates, and help with facility or operations questions.",
+  text: "Hi, I can chat casually, answer general questions, explain campus data, and help with voice updates or operations.",
   meta: { aiMode: "local" },
 };
 
@@ -764,7 +764,7 @@ const AIChatWidget = () => {
     <div className="fixed bottom-4 right-4 z-[80] flex flex-col items-end md:bottom-6 md:right-6">
       {open && (
         <div
-          className={`mb-3 flex w-[min(344px,calc(100vw-1rem))] max-h-[calc(100vh-6rem)] flex-col overflow-hidden rounded-[26px] border shadow-[0_24px_80px_rgba(15,23,42,0.28)] backdrop-blur-2xl ${
+          className={`mb-3 flex w-[min(336px,calc(100vw-1rem))] max-h-[calc(100vh-6rem)] flex-col overflow-hidden rounded-[26px] border shadow-[0_24px_80px_rgba(15,23,42,0.28)] backdrop-blur-2xl ${
             darkMode
               ? "border-white/10 bg-slate-950/90 text-white"
               : "border-white/40 bg-white/92 text-slate-900"
@@ -787,13 +787,11 @@ const AIChatWidget = () => {
                             ? "bg-emerald-500/15 text-emerald-500"
                             : "bg-slate-500/15 text-slate-500"
                         }`}
-                      >
+                        >
                         {aiMode === "enhanced" ? "Enhanced" : "Local"}
                       </span>
                     </div>
-                    <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
-                      {status} · Energy, water, carbon, operations, sensors, maps.
-                    </p>
+                    <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">{status}</p>
                   </div>
                 </div>
 
@@ -883,12 +881,12 @@ const AIChatWidget = () => {
                 </button>
                 <div className="inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-500/20 bg-cyan-500/10 px-3 py-2 text-xs font-semibold text-cyan-600 dark:text-cyan-300 sm:col-span-2">
                   <MessageCircle size={12} />
-                  Memory
+                  Memory on
                 </div>
               </div>
 
               {assistantMode !== ASSISTANT_MODES.chat && (
-                <div className="mt-3 rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-3 text-xs text-cyan-700 dark:text-cyan-200">
+                <div className="mt-3 rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-2.5 text-xs text-cyan-700 dark:text-cyan-200">
                   <div className="flex items-center justify-between gap-3">
                     <span className="font-semibold">
                       {assistantMode === ASSISTANT_MODES.telemetry ? "Voice Telemetry Draft" : "Voice Profile Draft"}
@@ -899,30 +897,30 @@ const AIChatWidget = () => {
                   </div>
 
                   {assistantMode === ASSISTANT_MODES.telemetry ? (
-                    <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-cyan-950 dark:text-cyan-50 sm:grid-cols-3">
-                      <div className="rounded-xl bg-white/70 px-2 py-1.5 dark:bg-black/20">
-                        <span className="block opacity-70">Building</span>
+                    <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-cyan-950 dark:text-cyan-50">
+                      <span className="rounded-full bg-white/70 px-2.5 py-1 dark:bg-black/20">
+                        <span className="opacity-70">Building</span>{" "}
                         <span className="font-semibold">{telemetryDraft.building || "pending"}</span>
-                      </div>
-                      <div className="rounded-xl bg-white/70 px-2 py-1.5 dark:bg-black/20">
-                        <span className="block opacity-70">Water</span>
+                      </span>
+                      <span className="rounded-full bg-white/70 px-2.5 py-1 dark:bg-black/20">
+                        <span className="opacity-70">Water</span>{" "}
                         <span className="font-semibold">{telemetryDraft.water || "pending"}</span>
-                      </div>
-                      <div className="rounded-xl bg-white/70 px-2 py-1.5 dark:bg-black/20">
-                        <span className="block opacity-70">Energy</span>
+                      </span>
+                      <span className="rounded-full bg-white/70 px-2.5 py-1 dark:bg-black/20">
+                        <span className="opacity-70">Energy</span>{" "}
                         <span className="font-semibold">{telemetryDraft.energy || "pending"}</span>
-                      </div>
+                      </span>
                     </div>
                   ) : (
-                    <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-cyan-950 dark:text-cyan-50">
-                      <div className="rounded-xl bg-white/70 px-2 py-1.5 dark:bg-black/20">
-                        <span className="block opacity-70">Name</span>
+                    <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-cyan-950 dark:text-cyan-50">
+                      <span className="rounded-full bg-white/70 px-2.5 py-1 dark:bg-black/20">
+                        <span className="opacity-70">Name</span>{" "}
                         <span className="font-semibold">{profileDraft.name || "pending"}</span>
-                      </div>
-                      <div className="rounded-xl bg-white/70 px-2 py-1.5 dark:bg-black/20">
-                        <span className="block opacity-70">Building</span>
+                      </span>
+                      <span className="rounded-full bg-white/70 px-2.5 py-1 dark:bg-black/20">
+                        <span className="opacity-70">Building</span>{" "}
                         <span className="font-semibold">{profileDraft.building || "pending"}</span>
-                      </div>
+                      </span>
                     </div>
                   )}
 
@@ -947,8 +945,8 @@ const AIChatWidget = () => {
                     </div>
                   ) : null}
 
-                  <div
-                    className={`min-w-0 max-w-[min(84%,34rem)] overflow-hidden rounded-[22px] px-4 py-3 text-sm leading-6 shadow-sm ${
+                    <div
+                    className={`min-w-0 max-w-[min(84%,30rem)] overflow-hidden rounded-[22px] px-4 py-3 text-sm leading-6 shadow-sm ${
                       isUser
                         ? "rounded-br-md bg-gradient-to-br from-primary to-yellow-300 text-slate-950"
                         : darkMode
@@ -1007,11 +1005,45 @@ const AIChatWidget = () => {
                       </div>
                     )}
 
-                    {msg.sender === "ai" && typeof msg.meta?.confidence === "number" && (
-                      <div className="mt-2 text-[11px] uppercase tracking-wide opacity-70">
-                        Confidence: {msg.meta.confidence}%
-                      </div>
-                    )}
+                    {msg.sender === "ai" &&
+                      (msg.meta?.confidence != null || msg.meta?.understanding || msg.meta?.ai) && (
+                        <details className="mt-2 rounded-2xl border border-cyan-500/15 bg-cyan-500/10 p-2 text-[11px] leading-5 text-cyan-700 dark:text-cyan-200">
+                          <summary className="cursor-pointer list-none font-semibold uppercase tracking-[0.18em]">
+                            More details
+                          </summary>
+                          <div className="mt-2 space-y-1">
+                            {typeof msg.meta?.confidence === "number" && (
+                              <div>Confidence: {msg.meta.confidence}%</div>
+                            )}
+                            {msg.meta?.understanding && (
+                              <>
+                                <div>Intent: {msg.meta.understanding.intent || "general_help"}</div>
+                                <div>Tone: {msg.meta.understanding.tone || "friendly"}</div>
+                                {msg.meta.understanding.entities?.building ? (
+                                  <div>Building: {msg.meta.understanding.entities.building}</div>
+                                ) : null}
+                                {msg.meta.understanding.entities?.location ? (
+                                  <div>Location: {msg.meta.understanding.entities.location}</div>
+                                ) : null}
+                                {msg.meta.understanding.entities?.sensorId ? (
+                                  <div>Sensor: {msg.meta.understanding.entities.sensorId}</div>
+                                ) : null}
+                                {msg.meta.understanding.rewrittenQuestion ? (
+                                  <div className="break-words [overflow-wrap:anywhere]">
+                                    Rewrite: {msg.meta.understanding.rewrittenQuestion}
+                                  </div>
+                                ) : null}
+                              </>
+                            )}
+                            {msg.meta?.ai?.provider ? (
+                              <div>
+                                AI: {msg.meta.ai.provider} {msg.meta.ai.model ? `(${msg.meta.ai.model})` : ""}
+                              </div>
+                            ) : null}
+                            {msg.meta?.aiMode ? <div>Mode: {msg.meta.aiMode}</div> : null}
+                          </div>
+                        </details>
+                      )}
 
                     {msg.sender === "ai" && msg.meta?.followUp && (
                       <button
@@ -1021,18 +1053,6 @@ const AIChatWidget = () => {
                         <Sparkles size={10} />
                         <span className="min-w-0 break-words text-left [overflow-wrap:anywhere]">{msg.meta.followUp}</span>
                       </button>
-                    )}
-
-                    {msg.sender === "ai" && msg.meta?.ai?.provider && (
-                      <div className="mt-2 text-[10px] uppercase tracking-[0.18em] opacity-60">
-                        AI: {msg.meta.ai.provider} {msg.meta.ai.model ? `(${msg.meta.ai.model})` : ""}
-                      </div>
-                    )}
-
-                    {msg.sender === "ai" && msg.meta?.aiMode && (
-                      <div className="mt-2 text-[10px] uppercase tracking-[0.18em] opacity-60">
-                        Mode: {msg.meta.aiMode}
-                      </div>
                     )}
 
                     {msg.sender === "ai" && msg.meta?.ai?.error && (
