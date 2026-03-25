@@ -50,10 +50,15 @@ const getModelStatus = async () => {
   }
 };
 
+const parseProfileVoice = async (text, draft = {}) => {
+  return postJson("/profile-parse", { text, draft });
+};
+
 module.exports = {
   postJson,
   getHealth,
   getInsights,
   trainModel,
   getModelStatus,
+  parseProfileVoice,
 };

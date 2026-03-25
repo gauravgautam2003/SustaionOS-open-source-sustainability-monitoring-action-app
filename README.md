@@ -37,6 +37,29 @@ ollama pull llama3.2:1b
 
 The app will still work without Ollama or any external AI key.
 
+## Deployment Checklist
+
+For a smooth deploy, set these environment variables instead of relying on local defaults:
+
+- `CLIENT_ORIGIN` in `server/.env` to your frontend origin, for example `https://your-app.vercel.app`
+- `VITE_API_URL` in `Client/.env` to your backend URL, for example `https://your-api.onrender.com`
+- `VITE_SOCKET_URL` in `Client/.env` to the same backend URL if Socket.IO is served separately
+
+Example production split:
+
+```env
+# server/.env
+CLIENT_ORIGIN=https://your-frontend-domain.com
+AI_PROVIDER=ollama
+OLLAMA_MODEL=llama3.2:1b
+```
+
+```env
+# Client/.env
+VITE_API_URL=https://your-backend-domain.com
+VITE_SOCKET_URL=https://your-backend-domain.com
+```
+
 This project was developed during a hackathon by Team ByteCoder.
 
 ---

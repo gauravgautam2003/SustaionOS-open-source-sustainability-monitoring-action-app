@@ -59,7 +59,7 @@ const Recommendations = () => {
           </div>
           <button onClick={loadRecommendations} className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-black">
             <RefreshCcw size={16} />
-            Refresh recommendations
+            {loading ? "Refreshing..." : "Refresh recommendations"}
           </button>
         </div>
       </Card>
@@ -88,6 +88,12 @@ const Recommendations = () => {
           </p>
         </Card>
       </div>
+
+      {loading && (
+        <Card className="p-4 text-sm text-gray-500 dark:text-gray-400">
+          Loading recommendations...
+        </Card>
+      )}
 
       <Card className="p-6">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Priority actions</h3>

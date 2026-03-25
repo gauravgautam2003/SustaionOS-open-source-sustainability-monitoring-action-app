@@ -42,17 +42,16 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
       />
 
       <aside
-        className={`fixed top-0 left-0 z-50 w-64 p-6 transition-transform duration-300
+        className={`fixed inset-y-0 left-0 z-50 flex h-screen w-64 flex-col overflow-y-auto border-r border-white/20 bg-white/70 p-6 shadow-2xl backdrop-blur-xl transition-transform duration-300
         ${isOpen ? "translate-x-0" : "-translate-x-full"}
-        lg:translate-x-0 lg:static
-        backdrop-blur-xl bg-white/70 dark:bg-gray-900/70 border-r
-        border-white/20 dark:border-gray-700 shadow-2xl flex flex-col`}
+        dark:border-gray-700 dark:bg-gray-900/70
+        lg:static lg:translate-x-0`}
       >
         <h2 className="text-2xl font-bold mb-10">
           <span className="text-primary">Sustain</span>OS
         </h2>
 
-        <nav className="flex flex-col gap-2">
+        <nav className="flex flex-1 flex-col gap-2">
           {menuItems.map((item) => {
             const Icon = item.icon;
 

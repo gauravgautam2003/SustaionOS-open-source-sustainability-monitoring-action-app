@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from "react";
 import Card from "../components/ui/Card";
-import { AuthContext } from "../context/AuthContext";
+import { AuthContext } from "../context/auth-context";
 import { ThemeContext } from "../context/ThemeContext";
 import SustainabilityGauge from "../components/dashboard/SustainabilityGauge";
 import { useNavigate } from "react-router-dom";

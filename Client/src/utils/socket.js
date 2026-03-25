@@ -1,7 +1,7 @@
 import { io } from "socket.io-client";
-import { getApiBase } from "./api";
+import { getSocketBase } from "./api";
 
-const SOCKET_URL = getApiBase();
+const SOCKET_URL = getSocketBase();
 
 const socket = io(SOCKET_URL, { autoConnect: false });
 

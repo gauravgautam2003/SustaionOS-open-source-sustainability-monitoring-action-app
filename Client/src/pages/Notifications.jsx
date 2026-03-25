@@ -1,12 +1,10 @@
-import React, { useEffect, useMemo, useState, useContext } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Card from "../components/ui/Card";
-import { ThemeContext } from "../context/ThemeContext";
 import { getAuthToken } from "../utils/auth";
 import { apiUrl } from "../utils/api";
 import { Bell, Sparkles, AlertTriangle, CheckCheck, RotateCcw } from "lucide-react";
 
 const Notifications = () => {
-  const { darkMode } = useContext(ThemeContext);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 

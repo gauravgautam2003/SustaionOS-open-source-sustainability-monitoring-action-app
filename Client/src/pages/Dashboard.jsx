@@ -155,7 +155,7 @@ const Dashboard = () => {
           : null,
       ]
         .filter(Boolean)
-        .join(" · "),
+        .join(" | "),
       icon: Gauge,
     },
     {

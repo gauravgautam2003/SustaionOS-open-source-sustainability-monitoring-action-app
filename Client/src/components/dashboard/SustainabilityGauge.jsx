@@ -25,8 +25,7 @@ const SustainabilityGauge = ({ score = 0 }) => {
     if (score >= 50) return Sparkles;
     return AlertTriangle;
   };
-
-  const StatusIcon = getIcon();
+  const statusIcon = getIcon();
 
   return (
     <Card className="relative overflow-hidden border border-gray-200 dark:border-gray-800 bg-gradient-to-br from-white to-amber-50/40 dark:from-gray-900 dark:to-gray-950">
@@ -41,7 +40,13 @@ const SustainabilityGauge = ({ score = 0 }) => {
 
       <div className="relative flex flex-col items-center justify-center text-center">
         <div className="flex items-center gap-2 text-sm font-semibold text-gray-500 dark:text-gray-400">
-          <StatusIcon size={14} style={{ color: getColor() }} />
+          {statusIcon === ShieldCheck ? (
+            <ShieldCheck size={14} style={{ color: getColor() }} />
+          ) : statusIcon === Sparkles ? (
+            <Sparkles size={14} style={{ color: getColor() }} />
+          ) : (
+            <AlertTriangle size={14} style={{ color: getColor() }} />
+          )}
           Sustainability Score
         </div>
 

@@ -1,50 +1,50 @@
-import React, { useEffect, useState, useContext } from "react";
+import React, { useCallback, useEffect, useState, useContext } from "react";
 import Card from "../ui/Card";
 import { Lightbulb, RotateCcw } from "lucide-react";
 import { ThemeContext } from "../../context/ThemeContext";
 import { getAuthToken } from "../../utils/auth";
 import { apiUrl } from "../../utils/api";
 
+const fallbackSuggestions = [
+  { title: "Shift loads", message: "Schedule heavy equipment to run during off-peak hours." },
+  { title: "Inspect leaks", message: "Check buildings with repeated water spikes for leaks." },
+  { title: "Reduce idle use", message: "Turn off unused appliances and idle systems." },
+  { title: "Monitor alerts", message: "Resolve high-severity alerts before they repeat." },
+];
+
+const normalizeSuggestions = (data, fallback = fallbackSuggestions) => {
+  if (Array.isArray(data?.suggestions) && data.suggestions.length > 0) {
+    return data.suggestions;
+  }
+
+  const answer = typeof data?.answer === "string" ? data.answer : "";
+  if (answer.trim()) {
+    const lines = answer
+      .split(/\n+/)
+      .map((line) => line.replace(/^[-\d.*\s]+/, "").trim())
+      .filter(Boolean);
+
+    if (lines.length > 0) {
+      return lines.slice(0, 4).map((message, index) => ({
+        title: `Tip ${index + 1}`,
+        message,
+      }));
+    }
+  }
+
+  return fallback;
+};
+
 const SuggestionsPanel = () => {
   const { darkMode } = useContext(ThemeContext);
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fallbackSuggestions = [
-    { title: "Shift loads", message: "Schedule heavy equipment to run during off-peak hours." },
-    { title: "Inspect leaks", message: "Check buildings with repeated water spikes for leaks." },
-    { title: "Reduce idle use", message: "Turn off unused appliances and idle systems." },
-    { title: "Monitor alerts", message: "Resolve high-severity alerts before they repeat." },
-  ];
-
-  const normalizeSuggestions = (data) => {
-    if (Array.isArray(data?.suggestions) && data.suggestions.length > 0) {
-      return data.suggestions;
-    }
-
-    const answer = typeof data?.answer === "string" ? data.answer : "";
-    if (answer.trim()) {
-      const lines = answer
-        .split(/\n+/)
-        .map((line) => line.replace(/^[\-\d.*\s]+/, "").trim())
-        .filter(Boolean);
-
-      if (lines.length > 0) {
-        return lines.slice(0, 4).map((message, index) => ({
-          title: `Tip ${index + 1}`,
-          message,
-        }));
-      }
-    }
-
-    return fallbackSuggestions;
-  };
-
-  const fetchSuggestions = async () => {
+  const fetchSuggestions = useCallback(async () => {
     setLoading(true);
     try {
       const token = getAuthToken();
-      const res = await fetch(apiUrl("/api/ai/query"),{
+      const res = await fetch(apiUrl("/api/ai/query"), {
         method:"POST",
         headers:{
           "Content-Type":"application/json",
@@ -62,18 +62,18 @@ const SuggestionsPanel = () => {
       }
 
       const data = await res.json();
-      setSuggestions(normalizeSuggestions(data));
+      setSuggestions(normalizeSuggestions(data, fallbackSuggestions));
     } catch (err) {
       console.error("Error fetching AI suggestions:", err);
       setSuggestions(fallbackSuggestions);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchSuggestions();
-  }, []);
+  }, [fetchSuggestions]);
 
   return (
     <div className="space-y-4">

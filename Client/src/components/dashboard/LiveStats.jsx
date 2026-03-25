@@ -10,10 +10,7 @@ const AnimatedCounter = ({ value = 0, duration = 900, unit = "" }) => {
     const steps = Math.max(1, Math.floor(duration / 30));
     const increment = value / steps;
 
-    if (!value) {
-      setCount(0);
-      return undefined;
-    }
+    if (!value) return undefined;
 
     const timer = setInterval(() => {
       frame += 1;
@@ -31,13 +28,15 @@ const AnimatedCounter = ({ value = 0, duration = 900, unit = "" }) => {
 
   return (
     <span className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
-      {count}
+      {value ? count : 0}
       <span className="ml-2 text-sm font-semibold text-gray-500 dark:text-gray-400">{unit}</span>
     </span>
   );
 };
 
 const StatCard = ({ title, value, unit, icon: Icon, accent, note }) => {
+  const StatIcon = Icon;
+
   return (
     <Card className="relative overflow-hidden p-0 border border-gray-200 dark:border-gray-800 bg-white dark:bg-cardBg">
       <div className={`absolute inset-x-0 top-0 h-1 ${accent}`} />
@@ -50,7 +49,7 @@ const StatCard = ({ title, value, unit, icon: Icon, accent, note }) => {
             </div>
           </div>
           <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 text-gray-700 dark:text-gray-200">
-            <Icon size={22} />
+            <StatIcon size={22} />
           </div>
         </div>
 

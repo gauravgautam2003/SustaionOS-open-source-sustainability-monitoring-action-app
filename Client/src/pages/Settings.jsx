@@ -46,16 +46,15 @@ const Settings = () => {
         });
 
         setDarkMode(!!data.darkMode);
-      } catch (err) {
-        console.error(err);
-        setMsg("❌ Failed to load settings");
+      } catch {
+        setMsg("Failed to load settings");
       } finally {
         setLoading(false);
       }
     };
 
     fetchSettings();
-  }, []);
+  }, [setDarkMode]);
 
   // 🔄 HANDLE CHANGE
   const handleChange = (key, value) => {
@@ -95,7 +94,7 @@ const Settings = () => {
       if (!res.ok) throw new Error(data.msg || "Error saving");
 
       setMsg("✅ Settings saved successfully");
-    } catch (err) {
+    } catch {
       setMsg("❌ Failed to save settings");
     } finally {
       setSaving(false);
@@ -135,9 +134,8 @@ const Settings = () => {
       }
 
       setMsg("✅ Settings reset to defaults");
-    } catch (err) {
-      console.error(err);
-      setMsg("❌ Failed to reset settings");
+    } catch {
+      setMsg("Failed to reset settings");
     } finally {
       setSaving(false);
     }

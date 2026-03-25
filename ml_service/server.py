@@ -12,6 +12,7 @@ MODEL_NAME = "sustainos-ensemble-v2"
 MODEL_VERSION = "2.0.0"
 MODEL_STATE_PATH = Path(__file__).with_name("model_state.json")
 from trainable_model import SustainOSLinearModel, parse_dt as model_parse_dt
+from profile_voice_model import PROFILE_VOICE_MODEL
 
 MODEL = SustainOSLinearModel(MODEL_STATE_PATH, MODEL_NAME, MODEL_VERSION)
 
@@ -286,6 +287,10 @@ def simulate_payload(records, energy_reduction_pct=10, water_reduction_pct=10, h
     return MODEL.simulate(records or [], energy_reduction_pct, water_reduction_pct, horizon_days)
 
 
+def parse_profile_payload(text, draft=None):
+    return PROFILE_VOICE_MODEL.parse(text or "", draft or {})
+
+
 class Handler(BaseHTTPRequestHandler):
     def _json(self, code, payload):
         body = json.dumps(payload).encode("utf-8")
@@ -336,6 +341,10 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/train":
             result = MODEL.train(payload.get("records") or [])
             return self._json(200, {"status": "trained", "model": result})
+
+        if path == "/profile-parse":
+            result = parse_profile_payload(payload.get("text") or "", payload.get("draft") or {})
+            return self._json(200, {"status": "success", **result, "model": {"name": "sustainos-profile-voice", "version": "1.0.0"}})
 
         return self._json(404, {"error": "not found"})
 

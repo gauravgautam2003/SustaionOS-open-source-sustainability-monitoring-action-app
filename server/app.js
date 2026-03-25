@@ -1,13 +1,27 @@
 const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
+const { CLIENT_ORIGIN } = require("./config/env");
 
 const app = express();
 
-app.use(cors({
-  origin: "http://localhost:5173",
-  credentials: true // allow cookies / credentialed requests and Authorization header
-}));
+const allowedOrigins = String(CLIENT_ORIGIN || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin) || allowedOrigins.includes("*")) {
+        return callback(null, true);
+      }
+      return callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
+    credentials: true, // allow cookies / credentialed requests and Authorization header
+  })
+);
 
 app.use(express.json());
 

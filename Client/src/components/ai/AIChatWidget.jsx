@@ -74,21 +74,326 @@ const normalizeText = (value = "") =>
     .replace(/[“”"']/g, "")
     .trim();
 
-const isHindiLike = (text = "") =>
-  /[\u0900-\u097F]/.test(text) ||
-  /(bhai|yaar|kya|kaise|kyu|kyon|nahi|nahin|haan|hai|karo|kar|bata|batao|bhej|submit|save|naam|paani|water|bijli|energy|location|building|sensor)/i.test(
-    String(text).toLowerCase()
-  );
+const compactText = (value = "") => String(value).replace(/\s+/g, " ").trim();
+
+const escapeRegex = (value = "") => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const cleanCapturedText = (value = "", stopWords = []) => {
+  const text = normalizeText(value);
+  if (!text) return "";
+
+  const escapedStopWords = stopWords.map(escapeRegex).filter(Boolean);
+  if (escapedStopWords.length > 0) {
+    const stopPattern = new RegExp(`\\b(?:${escapedStopWords.join("|")})\\b.*$`, "i");
+    const trimmed = text.replace(stopPattern, "").trim();
+    if (trimmed) {
+      return trimmed.replace(/[.,;:!?]+$/g, "").trim();
+    }
+  }
+
+  return text.replace(/[.,;:!?।॥]+$/g, "").trim();
+};
+
+const NAME_STOP_WORDS = [
+  "hai",
+  "hain",
+  "hoon",
+  "hun",
+  "hu",
+  "है",
+  "हैं",
+  "हूँ",
+  "हुं",
+  "जी",
+  "ji",
+  "please",
+  "plz",
+  "bro",
+  "buddy",
+  "sir",
+  "madam",
+  "aur",
+  "and",
+  "or",
+  "kaho",
+  "bolo",
+  "batao",
+  "bulao",
+  "call",
+  "me",
+  "my",
+  "name",
+  "nameis",
+  "submit",
+  "save",
+  "done",
+  "okay",
+  "ok",
+];
+
+const BUILDING_HINT_WORDS = [
+  "building",
+  "site",
+  "campus",
+  "college",
+  "office",
+  "branch",
+  "block",
+  "place",
+  "location",
+  "venue",
+  "bhavan",
+  "bhawan",
+  "flat",
+  "tower",
+  "wing",
+  "floor",
+  "centre",
+  "center",
+  "school",
+  "institute",
+  "university",
+  "academy",
+  "hostel",
+  "lab",
+  "department",
+  "facility",
+  "plant",
+  "campus",
+  "बिल्डिंग",
+  "भवन",
+  "कॉलेज",
+  "कॉलेज",
+  "ऑफिस",
+  "कार्यालय",
+  "ब्लॉक",
+  "स्कूल",
+  "संस्थान",
+  "विश्वविद्यालय",
+  "शाखा",
+  "कैंपस",
+  "स्थान",
+  "लोकेशन",
+];
+
+const COMMON_NOISE_WORDS = new Set([
+  "hi",
+  "hello",
+  "hey",
+  "ok",
+  "okay",
+  "yes",
+  "no",
+  "mera",
+  "meri",
+  "mere",
+  "मेरा",
+  "मेरी",
+  "मेरे",
+  "thanks",
+  "thank",
+  "bye",
+  "good",
+  "morning",
+  "evening",
+  "night",
+  "submit",
+  "save",
+  "done",
+  "profile",
+  "voice",
+  "draft",
+]);
+
+const PROFILE_NAME_CUES = [
+  /my name is/i,
+  /call me/i,
+  /i am/i,
+  /i'm/i,
+  /\bim\b/i,
+  /mera naam/i,
+  /mera name/i,
+  /\bnaam\b/i,
+  /\bname\b/i,
+  /मेरा नाम/i,
+  /\bनाम\b/i,
+  /\bमैं\b/i,
+  /\bmain\b/i,
+  /\bमुझे\b/i,
+];
+
+const PROFILE_BUILDING_CUES = [
+  /my building is/i,
+  /mera building/i,
+  /meri building/i,
+  /building is/i,
+  /\bbuilding\b/i,
+  /\bcampus\b/i,
+  /\bcollege\b/i,
+  /\bकॉलेज\b/i,
+  /\boffice\b/i,
+  /\bऑफिस\b/i,
+  /\bकार्यालय\b/i,
+  /\bbranch\b/i,
+  /\bblock\b/i,
+  /\bब्लॉक\b/i,
+  /\bsite\b/i,
+  /\blocation\b/i,
+  /\bvenue\b/i,
+  /\bschool\b/i,
+  /\bस्कूल\b/i,
+  /\binstitute\b/i,
+  /\bसंस्थान\b/i,
+  /\buniversity\b/i,
+  /\bविश्वविद्यालय\b/i,
+  /बिल्डिंग/i,
+  /भवन/i,
+  /कॉलेज/i,
+  /कैंपस/i,
+  /लोकेशन/i,
+  /स्थान/i,
+];
+
+const containsAnyHint = (text = "", hints = []) => {
+  const source = compactText(text).toLowerCase();
+  if (!source) return false;
+  return hints.some((hint) => source.includes(String(hint).toLowerCase()));
+};
+
+const findEarliestCue = (text = "", cues = []) => {
+  const source = String(text);
+  let best = null;
+
+  for (const cue of cues) {
+    const match = source.match(cue);
+    if (!match || match.index == null) continue;
+    if (!best || match.index < best.index) {
+      best = {
+        index: match.index,
+        length: match[0].length,
+      };
+    }
+  }
+
+  return best;
+};
+
+const extractSegmentAfterCue = (text = "", cue = null, stopCues = []) => {
+  const source = compactText(text);
+  if (!source || !cue) return "";
+
+  const cueMatch = source.match(cue);
+  if (!cueMatch || cueMatch.index == null) return "";
+
+  const tail = source.slice(cueMatch.index + cueMatch[0].length).trim();
+  if (!tail) return "";
+
+  const stopper = findEarliestCue(tail, stopCues);
+  const raw = stopper ? tail.slice(0, stopper.index) : tail;
+  return normalizeText(raw);
+};
+
+const isLikelyDirectBuildingName = (text = "") => {
+  const candidate = normalizeText(text);
+  if (!candidate) return false;
+  const lower = candidate.toLowerCase();
+  if (COMMON_NOISE_WORDS.has(lower)) return false;
+  if (containsAnyHint(candidate, BUILDING_HINT_WORDS)) return true;
+  if (/\d/.test(candidate) && candidate.split(" ").filter(Boolean).length <= 6) return true;
+  const words = candidate.split(" ").filter(Boolean);
+  if (words.length < 2 || words.length > 5) return false;
+  const latinTitleCase = words.every((word) => /^[A-Z][A-Za-z0-9.'-]*$/.test(word));
+  return latinTitleCase;
+};
+
+const sanitizeProfileNameValue = (value = "") => {
+  const cleaned = cleanCapturedText(
+    normalizeText(value)
+      .replace(/^(?:my name is|call me|i am|i'm|im|mera naam|mera name|naam|name|मेरा नाम|नाम|मैं|main|mujhe)\s*(?:is|hai|hoon|hun|hu|है|हूँ|हूं|हैं|जी|ji|:|=)?\s*/i, ""),
+    NAME_STOP_WORDS
+  )
+    .replace(/^(?:is|hai|ho|hoon|hun|hu|है|हैं|हूँ|हुं)\s+/i, "")
+    .replace(/\b(?:is|hai|ho|hoon|hun|hu|है|हैं|हूँ|हुं)\b$/i, "")
+    .trim();
+  if (!cleaned || COMMON_NOISE_WORDS.has(cleaned.toLowerCase())) return "";
+  return cleaned;
+};
+
+const sanitizeProfileBuildingValue = (value = "") => {
+  const cleaned = cleanCapturedText(
+    normalizeText(value)
+      .replace(/^(?:my building is|mera building|meri building|building is|building|site|campus|college|office|branch|block|place|location|venue|school|institute|university|बिल्डिंग|भवन|कैंपस|लोकेशन|स्थान)\s*(?:is|hai|ho|है|हैं|=|:|का|की|में|me|par|pe)?\s*/i, ""),
+    NAME_STOP_WORDS
+  )
+    .replace(/^(?:is|hai|ho|hoon|hun|hu|है|हैं|हूँ|हुं)\s+/i, "")
+    .replace(/\b(?:is|hai|ho|hoon|hun|hu|है|हैं|हूँ|हुं)\b$/i, "")
+    .trim();
+  if (!cleaned || COMMON_NOISE_WORDS.has(cleaned.toLowerCase())) return "";
+  return isLikelyDirectBuildingName(cleaned) || containsAnyHint(cleaned, BUILDING_HINT_WORDS) ? cleaned : "";
+};
+
+const sanitizeProfileDraft = (draft = emptyProfileDraft) => ({
+  name: sanitizeProfileNameValue(draft.name),
+  building: sanitizeProfileBuildingValue(draft.building),
+});
+
+const extractProfileName = (text = "") => {
+  const source = compactText(text);
+  if (!source) return "";
+
+  const nameCue = findEarliestCue(source, PROFILE_NAME_CUES);
+  if (!nameCue) return "";
+
+  const nameCuePattern = PROFILE_NAME_CUES.find((cue) => source.match(cue)?.index === nameCue.index) || null;
+  const stopCues = [...PROFILE_BUILDING_CUES, /submit/i, /save/i, /done/i];
+  let candidate = extractSegmentAfterCue(source, nameCuePattern, stopCues);
+  if (!candidate) {
+    candidate = normalizeText(source.replace(nameCuePattern, ""));
+  }
+
+  return sanitizeProfileNameValue(candidate);
+};
+
+const extractProfileBuilding = (text = "") => {
+  const source = compactText(text);
+  if (!source) return "";
+
+  const buildingCue = findEarliestCue(source, PROFILE_BUILDING_CUES);
+  if (buildingCue) {
+    const buildingCuePattern = PROFILE_BUILDING_CUES.find((cue) => source.match(cue)?.index === buildingCue.index) || null;
+    const stopCues = [...PROFILE_NAME_CUES, /submit/i, /save/i, /done/i];
+    let candidate = extractSegmentAfterCue(source, buildingCuePattern, stopCues);
+    if (!candidate) {
+      candidate = normalizeText(source.replace(buildingCuePattern, ""));
+    }
+
+    candidate = cleanCapturedText(candidate, NAME_STOP_WORDS);
+    candidate = candidate.replace(/^(?:is|hai|ho|hoon|hun|hu|है|हैं|हूँ|हुं)\s+/i, "");
+    candidate = candidate.replace(/\b(?:is|hai|ho|hoon|hun|hu|है|हैं|हूँ|हुं)\b$/i, "");
+    if (candidate && !COMMON_NOISE_WORDS.has(candidate.toLowerCase())) return candidate;
+  }
+
+  if (containsAnyHint(source, BUILDING_HINT_WORDS) || isLikelyDirectBuildingName(source)) {
+    const stripped = cleanCapturedText(
+      source
+        .replace(/^(?:my|mera|mere|meri|our|this|the|yeh|ye|yeh mera|ye mera)\s+/i, "")
+        .replace(
+          /^(?:building|site|campus|college|office|branch|block|place|location|venue|bhavan|bhawan|flat|tower|wing|floor|centre|center|school|institute|university|academy|hostel|lab|department|facility|plant|बिल्डिंग|भवन|कैंपस|स्थान|लोकेशन)\s*(?:is|hai|ho|=|:|का|की|में|me|par|pe)?\s*/i,
+          ""
+        ),
+      NAME_STOP_WORDS
+    );
+    const sanitized = sanitizeProfileBuildingValue(stripped);
+    if (sanitized) return sanitized;
+  }
+
+  return "";
+};
 
 const isSubmitCommand = (text = "") =>
   /^(submit|save|send|done|finish|ok|okay|haan|ha|ji|theek|thik|bas|bhej do|bhejdo|भेज दो|भेजो|save kar do|submit kar do|ho gaya|ho gya|हो गया|ठीक है)\b/i.test(
     String(text).trim().toLowerCase()
   );
-
-const extractFirstNumber = (text = "") => {
-  const match = String(text).match(/-?\d+(?:\.\d+)?/);
-  return match ? match[0] : "";
-};
 
 const extractByLabel = (text = "", labels = []) => {
   const source = String(text);
@@ -163,18 +468,12 @@ const extractTelemetryDraft = (text = "", previous = emptyTelemetryDraft) => {
 
 const extractProfileDraft = (text = "", previous = emptyProfileDraft) => {
   const next = { ...previous };
-  const nameMatch =
-    String(text).match(/(?:my name is|i am|i'm|call me)\s+([A-Za-z][A-Za-z\s.'-]{1,40})/i) ||
-    String(text).match(/(?:मेरा नाम(?: है)?|नाम(?: है)?|मैं\s+([^\d,.;]{1,40})\s*(?:हूँ|हूं|hun|hoon)|मुझे\s+([^\d,.;]{1,40})\s*(?:कहो|bolo|बोलो|बुलाओ))/i);
-  if (nameMatch?.[1]) {
-    next.name = normalizeText(nameMatch[1]);
-  } else if (nameMatch?.[2]) {
-    next.name = normalizeText(nameMatch[2]);
-  } else if (nameMatch?.[3]) {
-    next.name = normalizeText(nameMatch[3]);
+  const name = extractProfileName(text);
+  if (name) {
+    next.name = name;
   }
 
-  const building = extractDraftBuilding(text);
+  const building = extractProfileBuilding(text);
   if (building) next.building = building;
 
   return next;
@@ -211,32 +510,6 @@ const initialMessage = {
   meta: { aiMode: "local" },
 };
 
-const normalizeSuggestions = (data) => {
-  if (Array.isArray(data?.suggestions) && data.suggestions.length > 0) {
-    return data.suggestions;
-  }
-
-  const answer = typeof data?.answer === "string" ? data.answer : "";
-  if (answer.trim()) {
-    const lines = answer
-      .split(/\n+/)
-      .map((line) => line.replace(/^[\-\d.*\s]+/, "").trim())
-      .filter(Boolean);
-
-    if (lines.length > 0) {
-      return lines.slice(0, 4).map((message, index) => ({
-        title: `Tip ${index + 1}`,
-        message,
-      }));
-    }
-  }
-
-  return [
-    { title: "Check energy spikes", message: "Focus on heavy equipment and after-hours loads first." },
-    { title: "Inspect water loops", message: "Repeated water spikes usually mean leakage or waste." },
-    { title: "Review alerts", message: "Close critical incidents before they repeat." },
-  ];
-};
 
 const AIChatWidget = () => {
   const { darkMode } = useContext(ThemeContext);
@@ -252,9 +525,10 @@ const AIChatWidget = () => {
   const [voiceReady, setVoiceReady] = useState(false);
   const [assistantMode, setAssistantMode] = useState(() => loadJSON("sustainos-ai-mode", ASSISTANT_MODES.chat));
   const [telemetryDraft, setTelemetryDraft] = useState(() => loadJSON("sustainos-telemetry-draft", emptyTelemetryDraft));
-  const [profileDraft, setProfileDraft] = useState(() => loadJSON("sustainos-profile-draft", emptyProfileDraft));
+  const [profileDraft, setProfileDraft] = useState(() => sanitizeProfileDraft(loadJSON("sustainos-profile-draft", emptyProfileDraft)));
   const messagesEndRef = useRef(null);
   const recognitionRef = useRef(null);
+  const sendMessageRef = useRef(null);
 
   const aiMode = useMemo(
     () =>
@@ -283,6 +557,14 @@ const AIChatWidget = () => {
   useEffect(() => {
     saveJSON("sustainos-profile-draft", profileDraft);
   }, [profileDraft]);
+
+  useEffect(() => {
+    setProfileDraft((current) => {
+      const cleaned = sanitizeProfileDraft(current);
+      if (cleaned.name === current.name && cleaned.building === current.building) return current;
+      return cleaned;
+    });
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -329,7 +611,7 @@ const AIChatWidget = () => {
       if (transcript.trim()) {
         setInput(transcript.trim());
         setStatus("Voice input captured");
-        sendMessage(transcript.trim());
+        sendMessageRef.current?.(transcript.trim());
       }
     };
 
@@ -356,6 +638,7 @@ const AIChatWidget = () => {
     setStatus("Conversation cleared");
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const speakText = (text) => {
     if (!text || !window?.speechSynthesis) return;
     try {
@@ -482,6 +765,30 @@ const AIChatWidget = () => {
     return { ok: true, message: "Profile updated successfully.", data: json };
   };
 
+  const parseProfileDraftRemote = async (text, draft) => {
+    const token = getAuthToken();
+    if (!token) return null;
+
+    try {
+      const res = await fetch(apiUrl("/api/ai/profile-parse"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ text, draft }),
+      });
+
+      if (!res.ok) return null;
+      const json = await res.json().catch(() => null);
+      if (!json?.draft) return null;
+      return json;
+    } catch (err) {
+      console.error("Profile parse request failed:", err);
+      return null;
+    }
+  };
+
   const buildTelemetryReply = (draft) => {
     const missing = telemetryMissingFields(draft);
     const progress = draftProgress(draft, missing);
@@ -508,28 +815,42 @@ const AIChatWidget = () => {
     };
   };
 
-  const buildProfileReply = (draft) => {
+  const buildProfileReply = (draft, parseResult = null) => {
     const missing = profileMissingFields(draft);
     const progress = draftProgress(draft, missing);
+    const needs = new Set(parseResult?.needs || []);
     const lines = [];
     lines.push(`Profile draft note kar liya: ${progress.filled}/${progress.total} fields.`);
     lines.push(`Name: ${draft.name || "pending"}, Building: ${draft.building || "pending"}.`);
     if (missing.length > 0) {
       lines.push(`Missing: ${missing.join(", ")}.`);
-      lines.push("Jab naam aur building ready ho jaye, 'submit' bolo.");
+      if (missing.includes("name") && missing.includes("building")) {
+        lines.push("Naam aur building ka exact bol. Example: 'Mera naam Rahul hai' aur 'Sharda College'.");
+      } else if (missing.includes("name")) {
+        lines.push("Naam bolo. Example: 'Mera naam Rahul hai'.");
+      } else if (missing.includes("building")) {
+        lines.push(
+          needs.has("building")
+            ? "Building ka exact naam clear nahi hua. Example: 'Sharda College' ya 'Block A' bolo."
+            : "Building bolo. Example: 'Sharda College' ya 'Block A'."
+        );
+      } else {
+        lines.push("Jab naam aur building ready ho jaye, 'submit' bolo.");
+      }
       return {
         text: lines.join(" "),
-        meta: { mode: "profile", draft, missing, ready: false },
+        meta: { mode: "profile", draft, missing, needs: [...needs], ready: false },
       };
     }
 
     lines.push("Sab ready hai. Ab bolo 'submit' ya 'save' to profile update kar dunga.");
     return {
       text: lines.join(" "),
-      meta: { mode: "profile", draft, missing: [], ready: true },
+      meta: { mode: "profile", draft, missing: [], needs: [...needs], ready: true },
     };
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const handleVoiceAssistantMode = async (text) => {
     const normalized = normalizeText(text);
     if (!normalized) return null;
@@ -581,7 +902,12 @@ const AIChatWidget = () => {
     }
 
     if (assistantMode === ASSISTANT_MODES.profile) {
-      const nextDraft = extractProfileDraft(normalized, profileDraft);
+      const parsedProfile = await parseProfileDraftRemote(normalized, profileDraft);
+      const nextDraft = sanitizeProfileDraft(
+        parsedProfile?.draft
+          ? { ...profileDraft, ...parsedProfile.draft }
+          : { ...profileDraft, ...extractProfileDraft(normalized, profileDraft) }
+      );
 
       if (/^(clear|reset|naya|new|fresh|delete draft)\b/i.test(normalized)) {
         resetAssistantDraft();
@@ -596,7 +922,7 @@ const AIChatWidget = () => {
         setProfileDraft(nextDraft);
         const missing = profileMissingFields(nextDraft);
         if (missing.length > 0) {
-          const reply = buildProfileReply(nextDraft);
+          const reply = buildProfileReply(nextDraft, parsedProfile);
           return {
             sender: "ai",
             text: reply.text,
@@ -618,11 +944,16 @@ const AIChatWidget = () => {
       }
 
       setProfileDraft(nextDraft);
-      const reply = buildProfileReply(nextDraft);
+      const reply = buildProfileReply(nextDraft, parsedProfile);
       return {
         sender: "ai",
         text: reply.text,
-        meta: { aiMode: "local", draftMode: "profile", ...reply.meta },
+        meta: {
+          aiMode: parsedProfile ? "python-ml" : "local",
+          draftMode: "profile",
+          profileParse: parsedProfile || undefined,
+          ...reply.meta,
+        },
       };
     }
 
@@ -672,7 +1003,7 @@ const AIChatWidget = () => {
     }
   };
 
-  const sendMessage = async (customText) => {
+  const sendMessage = React.useCallback(async (customText) => {
     const text = (customText || input).trim();
     if (!text || loading) return;
 
@@ -749,8 +1080,12 @@ const AIChatWidget = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [input, loading, assistantMode, handleVoiceAssistantMode, autoSpeak, speakText]);
 
+  // The ref keeps voice-recognition callbacks pointing at the latest sender.
+  useEffect(() => {
+    sendMessageRef.current = sendMessage;
+  }, [sendMessage]);
   const handleKeyPress = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();

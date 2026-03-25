@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useContext } from "react";
 import Card from "../components/ui/Card";
 import { Line } from "react-chartjs-2";
-import { AuthContext } from "../context/AuthContext";
+import { AuthContext } from "../context/auth-context";
 import socket from "../utils/socket";
 import { apiUrl } from "../utils/api";
 

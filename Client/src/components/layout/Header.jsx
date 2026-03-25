@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useRef, useState } from "react";
 import { Bell, ChevronDown, ExternalLink, Menu, Sparkles, AlertTriangle } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ThemeContext } from "../../context/ThemeContext";
-import { AuthContext } from "../../context/AuthContext";
+import { AuthContext } from "../../context/auth-context";
 import { getAuthToken } from "../../utils/auth";
 import { apiUrl } from "../../utils/api";
 import socket from "../../utils/socket";
@@ -84,11 +84,6 @@ const Header = ({ setIsOpen }) => {
       socket.off("newNotification", onNewNotification);
     };
   }, [user?._id]);
-
-  useEffect(() => {
-    setUserMenuOpen(false);
-    setAlertMenuOpen(false);
-  }, [location.pathname]);
 
   const markNotificationRead = async (id) => {
     try {

@@ -1,4 +1,5 @@
 const aiService = require("../services/aiLLM.service");
+const mlBridge = require("../services/mlBridge.service");
 const Data = require("../models/Data");
 const predictService = require("../services/prediction.service");
 const decision = require("../ai/decision.engine");
@@ -57,5 +58,33 @@ exports.forecast = async (req, res) => {
   } catch (err) {
     console.error("Forecast Error:", err);
     return res.status(500).json({ msg: "Forecast failed" });
+  }
+};
+
+// POST /api/ai/profile-parse
+exports.profileParse = async (req, res) => {
+  try {
+    const userId = req.user && req.user._id;
+    if (!userId) return res.status(401).json({ msg: "Unauthorized" });
+
+    const { text = "", draft = {} } = req.body || {};
+    if (!String(text).trim()) {
+      return res.status(400).json({ msg: "Text required" });
+    }
+
+    const parsed = await mlBridge.parseProfileVoice(String(text), draft || {});
+    if (!parsed) {
+      return res.status(503).json({ success: false, msg: "Profile voice parser unavailable" });
+    }
+
+    return res.json({
+      status: "success",
+      ...parsed,
+      aiMode: "python-ml",
+      source: "python-ml",
+    });
+  } catch (err) {
+    console.error("Profile Parse Error:", err);
+    return res.status(500).json({ msg: "Profile parse failed" });
   }
 };

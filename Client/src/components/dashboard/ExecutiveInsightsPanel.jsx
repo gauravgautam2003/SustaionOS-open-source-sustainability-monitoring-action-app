@@ -198,7 +198,7 @@ const ExecutiveInsightsPanel = ({ period = "week", compact = false }) => {
                 {data.model?.fitScore != null
                   ? `Fit score ${data.model.fitScore}%`
                   : data.training?.metrics?.energy?.r2 != null
-                    ? `Energy R² ${data.training.metrics.energy.r2}`
+                    ? `Energy R-squared ${data.training.metrics.energy.r2}`
                     : "Training metrics pending"}
               </p>
             </div>

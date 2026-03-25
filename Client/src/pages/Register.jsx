@@ -54,7 +54,7 @@ const Register = () => {
 
       navigate("/login");
 
-    }catch(err){
+    } catch {
 
       setError("Server error");
 
