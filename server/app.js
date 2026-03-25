@@ -37,7 +37,7 @@ app.get("/api/health", (req, res) => {
 });
 
 app.use((req, res, next) => {
-  if (req.path === "/api/health") return next();
+  if (req.path === "/api/health" || req.path === "/api/ai/query") return next();
 
   if (req.path.startsWith("/api/") && !global.dbReady) {
     return res.status(503).json({

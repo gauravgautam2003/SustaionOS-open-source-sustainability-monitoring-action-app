@@ -26,16 +26,29 @@ exports.ask = async (req, res, next) => {
       return res.json({ status: "success", intent, answer, aiMode: "local" });
     }
 
-    const [latest, history, alerts] = await Promise.all([
-      Data.findOne({ userId }).sort({ timestamp: -1, createdAt: -1 }),
-      Data.find({ userId }).sort({ timestamp: -1 }).limit(48),
-      require("../models/Alert").find({ userId }).sort({ time: -1 }).limit(5),
-    ]);
+    let latest = null;
+    let history = [];
+    let alerts = [];
+
+    if (userId && global.dbReady !== false) {
+      [latest, history, alerts] = await Promise.all([
+        Data.findOne({ userId }).sort({ timestamp: -1, createdAt: -1 }),
+        Data.find({ userId }).sort({ timestamp: -1 }).limit(48),
+        require("../models/Alert").find({ userId }).sort({ time: -1 }).limit(5),
+      ]);
+    }
 
     const answer = await aiService.generateAnswer({
       question: question.toString(),
       userId,
-      context: { latest, history, alerts, skipLLM: Boolean(skipLLM), user: req.user },
+      context: {
+        latest,
+        history,
+        alerts,
+        skipLLM: Boolean(skipLLM),
+        user: req.user || null,
+        dbReady: global.dbReady !== false,
+      },
     });
 
     return res.json(answer);

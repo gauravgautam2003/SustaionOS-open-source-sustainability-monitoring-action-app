@@ -511,6 +511,33 @@ const initialMessage = {
   meta: { aiMode: "local" },
 };
 
+const toQuickTip = (value, index = 0) => {
+  if (typeof value === "string") {
+    return {
+      label: value,
+      prompt: value,
+      description: "",
+    };
+  }
+
+  const prompt = compactText(value?.prompt || value?.message || value?.text || value?.title || "");
+  const label = compactText(value?.title || prompt || `Tip ${index + 1}`);
+
+  return {
+    label,
+    prompt,
+    description: value?.title && value?.message ? compactText(value.message) : "",
+  };
+};
+
+const getQuickTipsForMode = (mode) =>
+  (
+    mode === ASSISTANT_MODES.telemetry
+      ? ["शारदा कॉलेज, पानी 4500, ऊर्जा 2300", "लोकेशन ब्लॉक A", "submit"]
+      : mode === ASSISTANT_MODES.profile
+        ? ["मेरा नाम राहुल है", "मेरा building शारदा कॉलेज", "submit"]
+        : seedSuggestions
+  ).map((item, index) => toQuickTip(item, index));
 
 const AIChatWidget = () => {
   const { darkMode } = useContext(ThemeContext);
@@ -519,26 +546,37 @@ const AIChatWidget = () => {
   const [messages, setMessages] = useState([initialMessage]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [quickTips, setQuickTips] = useState([]);
+  const [assistantMode, setAssistantMode] = useState(() => loadJSON("sustainos-ai-mode", ASSISTANT_MODES.chat));
+  const [quickTips, setQuickTips] = useState(() =>
+    getQuickTipsForMode(loadJSON("sustainos-ai-mode", ASSISTANT_MODES.chat))
+  );
   const [status, setStatus] = useState("Ready");
   const [listening, setListening] = useState(false);
   const [autoSpeak, setAutoSpeak] = useState(true);
   const [showTools, setShowTools] = useState(false);
   const [voiceReady, setVoiceReady] = useState(false);
-  const [assistantMode, setAssistantMode] = useState(() => loadJSON("sustainos-ai-mode", ASSISTANT_MODES.chat));
   const [telemetryDraft, setTelemetryDraft] = useState(() => loadJSON("sustainos-telemetry-draft", emptyTelemetryDraft));
   const [profileDraft, setProfileDraft] = useState(() => sanitizeProfileDraft(loadJSON("sustainos-profile-draft", emptyProfileDraft)));
   const messagesEndRef = useRef(null);
   const recognitionRef = useRef(null);
   const sendMessageRef = useRef(null);
+  const inputRef = useRef(null);
 
-  const aiMode = useMemo(
-    () =>
-      [...messages]
-        .reverse()
-        .find((msg) => msg.sender === "ai" && msg.meta?.aiMode)?.meta?.aiMode || "local",
+  const lastAiMessage = useMemo(
+    () => [...messages].reverse().find((msg) => msg.sender === "ai") || initialMessage,
     [messages]
   );
+
+  const aiMode = lastAiMessage?.meta?.aiMode || "local";
+  const aiProviderLabel = useMemo(() => {
+    const provider = String(lastAiMessage?.meta?.ai?.provider || "").toLowerCase();
+    if (provider === "ollama") return "Ollama";
+    if (provider === "openai") return "OpenAI";
+    if (provider === "gemini") return "Gemini";
+    if (aiMode === "python-ml") return "Python ML";
+    if (aiMode === "enhanced") return "Enhanced";
+    return "Local";
+  }, [aiMode, lastAiMessage]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -589,13 +627,26 @@ const AIChatWidget = () => {
 
   useEffect(() => {
     if (!open) return;
-    setQuickTips(
-      assistantMode === ASSISTANT_MODES.telemetry
-        ? ["शारदा कॉलेज, पानी 4500, ऊर्जा 2300", "लोकेशन ब्लॉक A", "submit"]
-        : assistantMode === ASSISTANT_MODES.profile
-          ? ["मेरा नाम राहुल है", "मेरा building शारदा कॉलेज", "submit"]
-          : seedSuggestions
-    );
+    setQuickTips(getQuickTipsForMode(assistantMode));
+  }, [open, assistantMode]);
+
+  useEffect(() => {
+    const inputNode = inputRef.current;
+    if (!inputNode) return;
+
+    inputNode.style.height = "0px";
+    const nextHeight = Math.min(Math.max(inputNode.scrollHeight, 52), 144);
+    inputNode.style.height = `${nextHeight}px`;
+  }, [input, open, assistantMode]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const timer = window.setTimeout(() => {
+      inputRef.current?.focus();
+    }, 120);
+
+    return () => window.clearTimeout(timer);
   }, [open, assistantMode]);
 
   useEffect(() => {
@@ -656,6 +707,7 @@ const AIChatWidget = () => {
 
   const clearChat = () => {
     setMessages([initialMessage]);
+    setQuickTips(getQuickTipsForMode(assistantMode));
     setStatus("Conversation cleared");
   };
 
@@ -1061,15 +1113,35 @@ const AIChatWidget = () => {
         body: JSON.stringify({ question: text }),
       });
 
-      if (res.status === 401) {
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        const failureText =
+          res.status === 401
+            ? "Unauthorized - please login to use AI features."
+            : data?.msg || data?.message || "Sorry, the AI request could not be completed right now.";
+
         setMessages((prev) =>
-          [...prev, { sender: "ai", text: "Unauthorized - please login to use AI features." }].slice(-20)
+          [
+            ...prev,
+            {
+              sender: "ai",
+              text: failureText,
+              meta: {
+                aiMode: "local",
+                ai: {
+                  provider: "local",
+                  model: null,
+                  error: failureText,
+                },
+              },
+            },
+          ].slice(-20)
         );
-        setStatus("Login required");
+        setStatus(res.status === 401 ? "Login required" : res.status === 503 ? "Data offline" : "Request failed");
         return;
       }
 
-      const data = await res.json();
       let responseText = "Sorry, I couldn't generate a response.";
 
       if (typeof data === "string") responseText = data;
@@ -1083,14 +1155,16 @@ const AIChatWidget = () => {
       }
 
       setMessages((prev) => [...prev, { sender: "ai", text: responseText, meta: data }].slice(-20));
-      setStatus(data?.aiMode === "enhanced" ? "Enhanced AI" : "Local AI");
+      if (data?.ai?.provider === "ollama") setStatus("Ollama AI");
+      else if (data?.ai?.provider === "openai") setStatus("OpenAI AI");
+      else if (data?.ai?.provider === "gemini") setStatus("Gemini AI");
+      else if (data?.aiMode === "python-ml") setStatus("Python ML");
+      else if (data?.aiMode === "enhanced") setStatus("Enhanced AI");
+      else setStatus(data?.liveDataReady === false ? "Limited data" : "Local AI");
       if (autoSpeak) speakText(responseText);
 
       if (Array.isArray(data?.suggestions)) {
-        setQuickTips(data.suggestions.slice(0, 4).map((item, index) => ({
-          title: item.title || `Tip ${index + 1}`,
-          message: item.message || "",
-        })));
+        setQuickTips(data.suggestions.slice(0, 4).map((item, index) => toQuickTip(item, index)));
       }
     } catch (err) {
       console.error("AI Chat Error:", err);
@@ -1128,24 +1202,26 @@ const AIChatWidget = () => {
       )}
 
       {open && (
-        <div className="absolute inset-0 flex items-end justify-center p-3 sm:p-4 md:items-end md:justify-end md:p-0">
+        <div className="absolute inset-0 flex items-end justify-center p-0 sm:p-4 md:justify-end">
           <div
-            className={`pointer-events-auto flex h-[min(84dvh,44rem)] w-full max-w-[32rem] flex-col overflow-hidden rounded-[28px] border shadow-[0_24px_80px_rgba(15,23,42,0.22)] backdrop-blur-2xl md:h-[min(80dvh,44rem)] md:w-[min(22rem,calc(100vw-2rem))] md:max-w-none md:rounded-[26px] md:border md:shadow-[0_24px_80px_rgba(15,23,42,0.28)] ${
+            className={`pointer-events-auto flex h-[100dvh] w-full max-w-none flex-col overflow-hidden border shadow-[0_24px_80px_rgba(15,23,42,0.22)] backdrop-blur-2xl sm:h-[min(88dvh,46rem)] sm:max-w-[34rem] sm:rounded-[28px] md:mr-4 md:h-[min(82dvh,46rem)] md:w-[min(24rem,calc(100vw-2rem))] md:max-w-none md:rounded-[26px] md:shadow-[0_24px_80px_rgba(15,23,42,0.28)] ${
             darkMode
               ? "border-white/10 bg-slate-950/82 text-white"
               : "border-white/30 bg-white/84 text-slate-900"
           }`}
+            style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
         >
           <div className="relative shrink-0 overflow-hidden">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(34,211,238,0.22),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(250,204,21,0.18),transparent_26%)]" />
-            <div className="relative border-b border-white/10 px-3.5 py-3.5">
+            <div className="relative border-b border-white/10 px-3.5 py-3.5 sm:px-4">
+              <div className="mx-auto mb-3 h-1.5 w-14 rounded-full bg-slate-400/30 sm:hidden" />
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-emerald-400 text-slate-950 shadow-lg shadow-cyan-500/20">
                     <Bot size={20} />
                   </div>
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <h3 className="text-sm font-semibold">AI Sustainability Copilot</h3>
                       <span
                         className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] ${
@@ -1154,7 +1230,10 @@ const AIChatWidget = () => {
                             : "bg-slate-500/15 text-slate-500"
                         }`}
                         >
-                        {aiMode === "enhanced" ? "Enhanced" : "Local"}
+                        {aiMode === "enhanced" ? "Enhanced" : aiMode === "python-ml" ? "ML" : "Local"}
+                      </span>
+                      <span className="rounded-full bg-cyan-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-600 dark:text-cyan-300">
+                        {aiProviderLabel}
                       </span>
                     </div>
                     <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">{status}</p>
@@ -1179,13 +1258,13 @@ const AIChatWidget = () => {
                 </div>
               </div>
 
-              <div className="mt-3 grid grid-cols-3 gap-1.5 rounded-2xl border border-white/10 bg-black/5 p-1 dark:bg-white/5">
+              <div className="-mx-1 mt-3 flex gap-1.5 overflow-x-auto px-1 pb-1">
                 <button
                   onClick={() => setAssistantMode(ASSISTANT_MODES.chat)}
-                  className={`inline-flex items-center justify-center gap-2 rounded-xl px-2.5 py-2 text-[10px] font-semibold whitespace-nowrap transition sm:text-xs ${
+                  className={`inline-flex min-w-[6.75rem] flex-none items-center justify-center gap-2 rounded-xl px-3 py-2 text-[11px] font-semibold whitespace-nowrap transition sm:min-w-0 sm:flex-1 sm:text-xs ${
                     assistantMode === ASSISTANT_MODES.chat
-                      ? "bg-cyan-500/20 text-cyan-700 dark:text-cyan-200"
-                      : "text-slate-500 dark:text-slate-300"
+                      ? "bg-cyan-500/20 text-cyan-700 shadow-sm dark:text-cyan-200"
+                      : "border border-white/10 bg-black/5 text-slate-500 dark:bg-white/5 dark:text-slate-300"
                   }`}
                 >
                   <MessageCircle size={12} />
@@ -1193,10 +1272,10 @@ const AIChatWidget = () => {
                 </button>
                 <button
                   onClick={() => setAssistantMode(ASSISTANT_MODES.telemetry)}
-                  className={`inline-flex items-center justify-center gap-2 rounded-xl px-2.5 py-2 text-[10px] font-semibold whitespace-nowrap transition sm:text-xs ${
+                  className={`inline-flex min-w-[8rem] flex-none items-center justify-center gap-2 rounded-xl px-3 py-2 text-[11px] font-semibold whitespace-nowrap transition sm:min-w-0 sm:flex-1 sm:text-xs ${
                     assistantMode === ASSISTANT_MODES.telemetry
-                      ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-200"
-                      : "text-slate-500 dark:text-slate-300"
+                      ? "bg-emerald-500/20 text-emerald-700 shadow-sm dark:text-emerald-200"
+                      : "border border-white/10 bg-black/5 text-slate-500 dark:bg-white/5 dark:text-slate-300"
                   }`}
                 >
                   <Mic size={12} />
@@ -1204,10 +1283,10 @@ const AIChatWidget = () => {
                 </button>
                 <button
                   onClick={() => setAssistantMode(ASSISTANT_MODES.profile)}
-                  className={`inline-flex items-center justify-center gap-2 rounded-xl px-2.5 py-2 text-[10px] font-semibold whitespace-nowrap transition sm:text-xs ${
+                  className={`inline-flex min-w-[8.5rem] flex-none items-center justify-center gap-2 rounded-xl px-3 py-2 text-[11px] font-semibold whitespace-nowrap transition sm:min-w-0 sm:flex-1 sm:text-xs ${
                     assistantMode === ASSISTANT_MODES.profile
-                      ? "bg-violet-500/20 text-violet-700 dark:text-violet-200"
-                      : "text-slate-500 dark:text-slate-300"
+                      ? "bg-violet-500/20 text-violet-700 shadow-sm dark:text-violet-200"
+                      : "border border-white/10 bg-black/5 text-slate-500 dark:bg-white/5 dark:text-slate-300"
                   }`}
                 >
                   <Sparkles size={12} />
@@ -1311,13 +1390,18 @@ const AIChatWidget = () => {
 
                 {messages.length === 1 && !loading && quickTips.length > 0 ? (
                   <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    {quickTips.map((q, i) => (
+                    {quickTips.map((tip, i) => (
                       <button
                         key={i}
-                        onClick={() => sendMessage(q)}
+                        onClick={() => tip.prompt && sendMessage(tip.prompt)}
                         className="w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-left text-xs font-medium text-slate-600 transition hover:-translate-y-0.5 hover:bg-white/10 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
                       >
-                        <span className="block truncate">{q}</span>
+                        <span className="block truncate text-[11px] font-semibold sm:text-xs">{tip.label}</span>
+                        {tip.description ? (
+                          <span className="mt-1 block text-[10px] leading-4 text-slate-500 dark:text-slate-400">
+                            {tip.description}
+                          </span>
+                        ) : null}
                       </button>
                     ))}
                   </div>
@@ -1475,9 +1559,13 @@ const AIChatWidget = () => {
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="shrink-0 border-t border-white/10 p-3">
+          <div
+            className="shrink-0 border-t border-white/10 p-3 sm:px-4"
+            style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 0.75rem)" }}
+          >
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
               <textarea
+                ref={inputRef}
                 rows={1}
                 placeholder={
                   assistantMode === ASSISTANT_MODES.chat
@@ -1489,7 +1577,7 @@ const AIChatWidget = () => {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyPress}
-                className={`max-h-28 min-w-0 flex-1 resize-none rounded-2xl border px-4 py-3 text-sm outline-none transition ${
+                className={`min-h-[3.25rem] min-w-0 flex-1 resize-none overflow-y-auto rounded-2xl border px-4 py-3 text-sm outline-none transition ${
                   darkMode
                     ? "border-white/10 bg-white/5 text-white placeholder:text-slate-500"
                     : "border-slate-200 bg-slate-50 text-slate-900 placeholder:text-slate-400"
@@ -1504,7 +1592,9 @@ const AIChatWidget = () => {
               </button>
             </div>
             <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-slate-500 dark:text-slate-400">
-              <span className="truncate">Tip: voice input works best in Hindi/Hinglish modes.</span>
+              <span className="min-w-0 flex-1 leading-4">
+                Tip: voice input works best in Hindi/Hinglish modes, and chat mode now stays usable even with limited live data.
+              </span>
               <button onClick={stopVoice} className="hover:text-slate-900 dark:hover:text-white">
                 Stop voice
               </button>

@@ -26,6 +26,8 @@ const GEMINI_RETRY_COOLDOWN_MS = 5 * 60 * 1000;
 let openaiRetryUntil = 0;
 let geminiRetryUntil = 0;
 
+const isDatabaseReady = () => global.dbReady !== false;
+
 const addToMemory = (userId, role, text) => {
   if (!userId) return;
   const key = String(userId);
@@ -129,7 +131,7 @@ const resolveDisplayName = ({ user = null, memoryState = {}, question = "" } = {
 };
 
 const loadConversationState = async (userId) => {
-  if (!userId) return null;
+  if (!userId || !isDatabaseReady()) return null;
   return ConversationMemory.findOne({ userId }).lean();
 };
 
@@ -145,7 +147,7 @@ const persistConversationTurn = async ({
   displayName,
   preferredName,
 }) => {
-  if (!userId) return;
+  if (!userId || !isDatabaseReady()) return;
 
   try {
     const existing = await ConversationMemory.findOne({ userId });
@@ -235,6 +237,109 @@ const buildGeneralHelp = () => ({
   answer:
     "I can read your latest data, compare periods, explain spikes, forecast usage, suggest actions, track sensors, map buildings, and support facility or operations questions. Try asking for a comparison, a diagnosis, a forecast, maintenance advice, or the top next step.",
 });
+
+const buildStaticSuggestions = () => [
+  {
+    title: "Check Leaks First",
+    message: "Inspect valves, tanks, and pipelines before making bigger operational changes.",
+  },
+  {
+    title: "Shift Heavy Loads",
+    message: "Move non-critical high-energy activity to off-peak windows whenever possible.",
+  },
+  {
+    title: "Tighten Alert Thresholds",
+    message: "Catch abnormal water and energy spikes early so waste does not repeat.",
+  },
+  {
+    title: "Review Building Hotspots",
+    message: "Compare one building at a time and fix the worst offender before tuning the rest.",
+  },
+];
+
+const describeLiveDataGap = ({ userId, dbReady }) => {
+  const gaps = [];
+  if (!userId) gaps.push("no signed-in campus account is attached");
+  if (!dbReady) gaps.push("the database is temporarily unavailable");
+  return gaps.join(" and ") || "live telemetry is not available";
+};
+
+const buildLimitedDataPayload = ({ question = "", userId, dbReady, detectedIntent, parsed, understanding }) => {
+  const q = String(question || "").toLowerCase();
+  const reason = describeLiveDataGap({ userId, dbReady });
+  const reconnectLine = !userId
+    ? "Sign in once and I will switch to live campus analytics."
+    : "As soon as the database reconnects, I can use live dashboard telemetry again.";
+
+  if (detectedIntent === "prediction" || /\bforecast|predict|next hour|next day\b/.test(q)) {
+    return buildStructuredAnswer({
+      intent: "data_unavailable",
+      answer: `I can keep chatting in Ollama/local mode, but I cannot generate a telemetry forecast right now because ${reason}. ${reconnectLine}`,
+      tone: "supportive",
+      followUp: !userId
+        ? "Ask me a general question, or sign in and I will forecast from your readings."
+        : "Ask me something general for now, or retry the forecast once data is back.",
+      parsed,
+      understanding,
+      liveDataReady: false,
+    });
+  }
+
+  if (detectedIntent === "suggestion" || detectedIntent === "action" || /\bsuggest|tip|action|fix|optimize|improve|reduce|save\b/.test(q)) {
+    return buildStructuredAnswer({
+      intent: "suggestions",
+      answer: `I do not have live telemetry because ${reason}, but I can still give strong best-practice actions. Start with leak checks, peak-load shifting, tighter alert thresholds, and fixing the highest-load building first. ${reconnectLine}`,
+      tone: "supportive",
+      followUp: "Want a quick checklist for energy savings or water savings first?",
+      suggestions: buildStaticSuggestions(),
+      parsed,
+      understanding,
+      liveDataReady: false,
+    });
+  }
+
+  if (detectedIntent === "carbon" || /\bcarbon|co2|footprint|emission\b/.test(q)) {
+    return buildStructuredAnswer({
+      intent: "carbon",
+      answer: `I cannot calculate your live carbon footprint because ${reason}, but the fastest carbon wins are reducing peak energy draw, shifting heavy loads off-peak, and removing repeated waste sources. ${reconnectLine}`,
+      tone: "supportive",
+      followUp: "Want a simple 3-step carbon reduction checklist?",
+      carbon: {
+        value: null,
+        savings: 0,
+      },
+      parsed,
+      understanding,
+      liveDataReady: false,
+    });
+  }
+
+  if (/\bscore|current|latest|today|now|compare|report|dashboard|alert|building|site|map|why|cause|problem\b/.test(q)) {
+    return buildStructuredAnswer({
+      intent: "data_unavailable",
+      answer: `I can keep chatting in Ollama/local mode, but I cannot answer that with live campus data because ${reason}. ${reconnectLine}`,
+      tone: "supportive",
+      followUp: !userId
+        ? "Ask me something general, or sign in for live score, alerts, and forecasts."
+        : "Ask me something general for now, or retry once telemetry is available again.",
+      parsed,
+      understanding,
+      liveDataReady: false,
+    });
+  }
+
+  return buildStructuredAnswer({
+    intent: "general_help",
+    answer: `I can still help with general chat and sustainability guidance, but live campus analytics are limited because ${reason}. ${reconnectLine}`,
+    tone: "supportive",
+    followUp: !userId
+      ? "Want a general sustainability tip, or do you want to sign in for live analytics?"
+      : "Want a general sustainability tip while live data reconnects?",
+    parsed,
+    understanding,
+    liveDataReady: false,
+  });
+};
 
 const buildHumanConversationReply = ({ question, memoryState = {}, memoryTurns = [], user = null }) => {
   const q = String(question || "").toLowerCase();
@@ -561,6 +666,17 @@ const buildIndustryCopilotReply = ({ question, latest, insights, alerts, predict
 
 const humanizeLocalReply = ({ payload, parsed, insights, latest, alerts, prediction, rootCause, tips, question }) => {
   const intent = payload?.intent || "general_help";
+
+  if (payload?.liveDataReady === false || intent === "data_unavailable") {
+    return {
+      reply:
+        payload?.answer ||
+        "Live telemetry is not available right now, but I can still help with general sustainability guidance.",
+      tone: payload?.tone || "supportive",
+      followUp: payload?.followUp || "Want a simple sustainability checklist while live data is unavailable?",
+    };
+  }
+
   const topBuilding = insights?.buildingBenchmarks?.[0]?.building || latest?.building || "your site";
   const score = Number(insights?.score ?? 0);
   const risk = String(insights?.riskLevel || "Low").toLowerCase();
@@ -724,6 +840,15 @@ const parseJsonSafe = (text) => {
   try {
     return JSON.parse(cleaned);
   } catch {
+    const firstBrace = cleaned.indexOf("{");
+    const lastBrace = cleaned.lastIndexOf("}");
+    if (firstBrace >= 0 && lastBrace > firstBrace) {
+      try {
+        return JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
+      } catch {
+        return null;
+      }
+    }
     return null;
   }
 };
@@ -1069,19 +1194,28 @@ const humanizeWithLLM = async ({
   const timeout = setTimeout(() => controller.abort(), Math.max(1500, timeoutMs || 5000));
 
   if (mode === "ollama" || mode === "auto") {
-    attempts.push(() => humanizeWithOllama({ prompt, signal: controller.signal }));
+    attempts.push({
+      name: "Ollama",
+      run: () => humanizeWithOllama({ prompt, signal: controller.signal }),
+    });
   }
   if (mode === "gemini" || mode === "auto") {
-    attempts.push(() => humanizeWithGemini({ prompt, signal: controller.signal }));
+    attempts.push({
+      name: "Gemini",
+      run: () => humanizeWithGemini({ prompt, signal: controller.signal }),
+    });
   }
   if (mode === "openai" || mode === "auto") {
-    attempts.push(() => humanizeWithOpenAI({ prompt, signal: controller.signal }));
+    attempts.push({
+      name: "OpenAI",
+      run: () => humanizeWithOpenAI({ prompt, signal: controller.signal }),
+    });
   }
 
   try {
     for (const attempt of attempts) {
       try {
-        const result = await attempt();
+        const result = await attempt.run();
         if (result?.reply) return result;
       } catch (err) {
         if (err?.name === "AbortError") {
@@ -1095,7 +1229,7 @@ const humanizeWithLLM = async ({
             openaiRetryUntil = Date.now() + OPENAI_RETRY_COOLDOWN_MS;
           }
         }
-        console.error(`${msg.includes("Gemini") ? "Gemini" : "OpenAI"} refinement failed:`, err.message || err);
+        console.error(`${attempt.name} refinement failed:`, err.message || err);
       }
     }
   } finally {
@@ -1320,6 +1454,7 @@ const generateAnswer = async ({ question, userId, context = {} }) => {
   const q = qRaw.toLowerCase().trim();
   const detectedIntent = intentEngine.detectIntent ? intentEngine.detectIntent(qRaw) : "unknown";
   const parsed = parseQuery(q);
+  const dbReady = context?.dbReady !== false && isDatabaseReady();
   const conversationState = await loadConversationState(userId);
   const memory = getMemory(userId);
   const identity = resolveDisplayName({ user: context?.user || null, memoryState: conversationState || {}, question: qRaw });
@@ -1336,14 +1471,6 @@ const generateAnswer = async ({ question, userId, context = {} }) => {
   });
 
   addToMemory(userId, "user", qRaw);
-
-  if (!userId) {
-    return buildStructuredAnswer({
-      intent: "unauthorized",
-      answer: "Unauthorized: user context missing.",
-      understanding,
-    });
-  }
 
   if (explicitPreferredName) {
     const payload = buildStructuredAnswer({
@@ -1451,6 +1578,92 @@ const generateAnswer = async ({ question, userId, context = {} }) => {
       question: qRaw,
       answer: payload.answer || "",
       intent: payload.intent || "general_chat",
+      tone: payload.tone || "friendly",
+      followUp: payload.followUp || "",
+      topics: extractTopics(qRaw, payload.intent),
+      language: detectLanguageStyle(qRaw),
+      displayName: identity.displayName,
+      preferredName: identity.preferredName,
+    });
+
+    return { ...payload, conversation: getMemory(userId).slice(-6), insights: null };
+  }
+
+  const hasLiveDataContext =
+    Boolean(context?.latest) ||
+    (Array.isArray(context?.history) && context.history.length > 0) ||
+    (Array.isArray(context?.alerts) && context.alerts.length > 0);
+
+  if (!userId || !dbReady || !hasLiveDataContext) {
+    const payload = buildLimitedDataPayload({
+      question: qRaw,
+      userId,
+      dbReady,
+      detectedIntent,
+      parsed,
+      understanding,
+    });
+
+    payload.aiMode = "local";
+    payload.confidence = userId ? 62 : 58;
+
+    try {
+      if (!context?.skipLLM) {
+        const humanized = await humanizeWithLLM({
+          question: qRaw,
+          payload,
+          insights: null,
+          latest: context?.latest || null,
+          alerts: Array.isArray(context?.alerts) ? context.alerts : [],
+          memory: memoryTurns,
+          memoryState: conversationState || {},
+          understanding,
+          timeoutMs: 12000,
+        });
+
+        if (humanized?.reply) {
+          payload.answer = humanized.reply;
+          payload.ai = providerMessage(humanized.provider, humanized.model);
+          payload.aiMode = payload.ai?.provider && payload.ai.provider !== "local" ? "enhanced" : "local";
+          if (humanized.tone) payload.tone = humanized.tone;
+          if (humanized.followUp) payload.followUp = humanized.followUp;
+        }
+      }
+    } catch (err) {
+      console.error("Limited-data AI refinement failed:", err.message || err);
+      payload.ai = {
+        provider: "local",
+        model: null,
+        error: err.message || "Unknown AI error",
+      };
+    }
+
+    if (!payload.ai?.provider || payload.ai.provider === "local") {
+      const localHuman = humanizeLocalReply({
+        payload,
+        parsed,
+        insights: null,
+        latest: context?.latest || null,
+        alerts: Array.isArray(context?.alerts) ? context.alerts : [],
+        prediction: null,
+        rootCause: "",
+        tips: [],
+        question: qRaw,
+      });
+
+      if (localHuman?.reply) {
+        payload.answer = localHuman.reply;
+        payload.tone = localHuman.tone || payload.tone || "friendly";
+        if (localHuman.followUp) payload.followUp = localHuman.followUp;
+      }
+    }
+
+    addToMemory(userId, "assistant", payload.answer || JSON.stringify(payload));
+    await persistConversationTurn({
+      userId,
+      question: qRaw,
+      answer: payload.answer || "",
+      intent: payload.intent || "general_help",
       tone: payload.tone || "friendly",
       followUp: payload.followUp || "",
       topics: extractTopics(qRaw, payload.intent),
