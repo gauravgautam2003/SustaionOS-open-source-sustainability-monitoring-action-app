@@ -1,62 +1,79 @@
 import React, { useContext } from "react";
-import { Twitter, Linkedin, Github } from "lucide-react";
+import { Leaf } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { ThemeContext } from "../../context/ThemeContext";
+
+const quickLinks = [
+  { label: "Dashboard", path: "/" },
+  { label: "Reports", path: "/reports" },
+  { label: "Alerts", path: "/alerts" },
+  { label: "Impact", path: "/impact" },
+];
 
 const Footer = () => {
   const { darkMode } = useContext(ThemeContext);
+  const navigate = useNavigate();
 
   return (
     <footer
-      className={`w-full border-t transition-colors duration-300
-        ${darkMode ? "bg-darkBg border-gray-700" : "bg-white border-gray-300"}`}
+      className={`w-full border-t transition-colors duration-300 ${
+        darkMode ? "border-gray-800 bg-darkBg/95" : "border-gray-200 bg-white/95"
+      }`}
     >
-      <div className="max-w-7xl mx-auto px-4 py-6 flex flex-col md:flex-row items-center justify-between gap-4">
+      <div className="mx-auto max-w-7xl px-4 py-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/15 text-primary">
+              <Leaf size={18} />
+            </div>
+            <div>
+              <p className={`text-sm font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}>
+                <span className="text-primary">Sustain</span>OS
+              </p>
+              <p className={`mt-1 text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
+                Live dashboard for energy, water, alerts, and smarter campus decisions.
+              </p>
+            </div>
+          </div>
 
-        {/* Left: Copyright */}
-        <p className={`text-sm transition-colors duration-300 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
-          © {new Date().getFullYear()} SustainOS. All rights reserved.
-        </p>
-
-        {/* Center: Links */}
-        <div className="flex gap-6 text-sm">
-          {["About", "Contact", "Privacy"].map((link) => (
-            <a
-              key={link}
-              href={`/${link.toLowerCase()}`}
-              className={`relative group transition-colors duration-300
-                ${darkMode ? "text-gray-400 hover:text-primary" : "text-gray-600 hover:text-primary"}`}
-            >
-              {link}
-              <span
-                className={`absolute left-0 -bottom-1 w-0 h-[2px] bg-primary transition-all duration-300 group-hover:w-full`}
-              />
-            </a>
-          ))}
-        </div>
-
-        {/* Right: Social Icons */}
-        <div className="flex gap-4">
-          {[{icon: Twitter, link: "https://twitter.com"}, {icon: Linkedin, link: "https://linkedin.com"}, {icon: Github, link: "https://github.com"}].map((item, idx) => {
-            const Icon = item.icon;
-            return (
-              <a
-                key={idx}
-                href={item.link}
-                target="_blank"
-                rel="noreferrer"
-                className={`transition-transform duration-300 hover:scale-110 ${
-                  darkMode ? "text-gray-400 hover:text-primary" : "text-gray-600 hover:text-primary"
+          <div className="flex flex-wrap gap-2">
+            {quickLinks.map((item) => (
+              <button
+                key={item.path}
+                type="button"
+                onClick={() => navigate(item.path)}
+                className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-all duration-300 ${
+                  darkMode
+                    ? "border-gray-700 text-gray-300 hover:border-primary hover:text-primary"
+                    : "border-gray-200 text-gray-600 hover:border-primary hover:text-primary"
                 }`}
               >
-                <Icon size={18} />
-              </a>
-            );
-          })}
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div
+          className={`mt-4 flex flex-col gap-2 border-t pt-4 text-sm md:flex-row md:items-center md:justify-between ${
+            darkMode ? "border-gray-800 text-gray-400" : "border-gray-200 text-gray-600"
+          }`}
+        >
+          <p>{new Date().getFullYear()} SustainOS. Smart sustainability monitoring for modern campuses.</p>
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide">
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            Live monitoring active
+          </div>
         </div>
       </div>
 
-      {/* Optional subtle bottom glow */}
-      <div className={`h-1 w-full ${darkMode ? "bg-gradient-to-r from-primary/50 via-transparent to-primary/50" : "bg-gradient-to-r from-primary/30 via-transparent to-primary/30"}`} />
+      <div
+        className={`h-1 w-full ${
+          darkMode
+            ? "bg-gradient-to-r from-primary/45 via-transparent to-primary/45"
+            : "bg-gradient-to-r from-primary/25 via-transparent to-primary/25"
+        }`}
+      />
     </footer>
   );
 };

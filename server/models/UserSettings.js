@@ -23,6 +23,7 @@ const userSettingsSchema = new mongoose.Schema({
   energyAlerts: { type: Boolean, default: true },
   waterAlerts: { type: Boolean, default: true },
   weeklyReports: { type: Boolean, default: false },
+  sustainabilityGoal: { type: Number, default: 20 },
 
 }, { timestamps: true });
 

@@ -187,14 +187,26 @@ const Dashboard = () => {
             <div className="max-w-3xl">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/20 bg-primary/10 text-xs font-semibold text-black dark:text-white">
                 <Sparkles size={14} />
-                Live AI sustainability command center
+                Live AI campus sustainability hub
               </div>
               <h1 className="mt-4 text-3xl md:text-5xl font-bold tracking-tight text-gray-900 dark:text-white">
-                One view for energy, water, alerts, and next actions.
+                One view for energy, water, alerts, and action.
               </h1>
               <p className="mt-3 text-gray-600 dark:text-gray-400 max-w-2xl">
                 Monitor your campus in real time, catch waste spikes early, and turn telemetry into decisions the team can act on.
               </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-600">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                  Live score {scoreData?.score || 0}%
+                </span>
+                <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white/80 px-3 py-1 text-xs font-semibold text-gray-600 dark:border-gray-700 dark:bg-gray-900/70 dark:text-gray-300">
+                  {activeAlertsCount} active alerts
+                </span>
+                <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white/80 px-3 py-1 text-xs font-semibold text-gray-600 dark:border-gray-700 dark:bg-gray-900/70 dark:text-gray-300">
+                  {latest.building || "Unknown building"} live now
+                </span>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3 min-w-[280px]">
@@ -203,7 +215,7 @@ const Dashboard = () => {
                 return (
                   <div
                     key={item.label}
-                    className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-900/70 p-4 backdrop-blur"
+                    className="rounded-2xl border border-gray-200 bg-white/70 p-4 backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md dark:border-gray-800 dark:bg-gray-900/70"
                   >
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-xs text-gray-500 dark:text-gray-400">{item.label}</p>
@@ -224,7 +236,7 @@ const Dashboard = () => {
           <div className="mt-6 flex flex-wrap gap-3">
             <button
               onClick={() => document.getElementById("alerts-section")?.scrollIntoView({ behavior: "smooth" })}
-              className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-black shadow-sm shadow-primary/20"
+              className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-black shadow-sm shadow-primary/20 transition-transform duration-300 hover:-translate-y-0.5"
             >
               <Bell size={16} />
               Review alerts
@@ -232,21 +244,21 @@ const Dashboard = () => {
             </button>
             <button
               onClick={() => document.getElementById("insights-section")?.scrollIntoView({ behavior: "smooth" })}
-              className="inline-flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-700 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200"
+              className="inline-flex items-center gap-2 rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition-all duration-300 hover:border-primary hover:text-primary dark:border-gray-700 dark:text-gray-200"
             >
               <Gauge size={16} />
               Open insights
             </button>
             <button
               onClick={() => document.getElementById("forecast-section")?.scrollIntoView({ behavior: "smooth" })}
-              className="inline-flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-700 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200"
+              className="inline-flex items-center gap-2 rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition-all duration-300 hover:border-primary hover:text-primary dark:border-gray-700 dark:text-gray-200"
             >
               <TrendingUp size={16} />
               Forecast
             </button>
             <button
               onClick={() => navigate("/locations")}
-              className="inline-flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-700 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200"
+              className="inline-flex items-center gap-2 rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition-all duration-300 hover:border-primary hover:text-primary dark:border-gray-700 dark:text-gray-200"
             >
               <Gauge size={16} />
               View map

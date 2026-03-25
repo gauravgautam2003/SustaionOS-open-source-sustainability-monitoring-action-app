@@ -109,7 +109,7 @@ const Header = ({ setIsOpen }) => {
       ref={headerRef}
       className="sticky top-0 z-30 border-b border-white/20 dark:border-gray-800 bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl shadow-sm"
     >
-      <div className="mx-auto flex h-16 w-full max-w-[1600px] items-center justify-between gap-3 px-4 md:px-6">
+      <div className="mx-auto flex min-h-[4.5rem] w-full max-w-[1600px] items-center justify-between gap-3 px-4 py-3 md:px-6">
         <div className="flex min-w-0 items-center gap-3">
           <button
             type="button"
@@ -131,12 +131,17 @@ const Header = ({ setIsOpen }) => {
               </span>
             </div>
             <p className="hidden truncate text-xs text-gray-500 dark:text-gray-400 md:block">
-              {pageTitle}
+              {pageTitle} · AI-powered campus monitoring
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 md:gap-3">
+          <div className="hidden items-center gap-2 rounded-full border border-emerald-500/15 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-300 lg:inline-flex">
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            Auto-refreshing
+          </div>
+
           <div className="relative">
             <button
               type="button"
