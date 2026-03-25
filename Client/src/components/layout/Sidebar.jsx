@@ -13,6 +13,7 @@ import {
   MapPin,
   Settings,
   User,
+  X,
 } from "lucide-react";
 
 const menuItems = [
@@ -42,16 +43,27 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
       />
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex h-screen w-64 flex-col overflow-y-auto border-r border-white/20 bg-white/70 p-6 shadow-2xl backdrop-blur-xl transition-transform duration-300
+        className={`fixed inset-y-0 left-0 z-50 flex h-[100dvh] w-[min(18rem,88vw)] flex-col overflow-y-auto border-r border-white/20 bg-white/70 p-4 shadow-2xl backdrop-blur-xl transition-transform duration-300
         ${isOpen ? "translate-x-0" : "-translate-x-full"}
         dark:border-gray-700 dark:bg-gray-900/70
-        lg:static lg:translate-x-0`}
+        lg:static lg:w-72 lg:translate-x-0 lg:p-6`}
       >
-        <h2 className="text-2xl font-bold mb-10">
-          <span className="text-primary">Sustain</span>OS
-        </h2>
+        <div className="mb-8 flex items-start justify-between gap-3">
+          <h2 className="text-2xl font-bold">
+            <span className="text-primary">Sustain</span>OS
+          </h2>
 
-        <nav className="flex flex-1 flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => setIsOpen(false)}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white/80 text-gray-700 transition hover:border-primary hover:text-primary dark:border-gray-800 dark:bg-gray-900/80 dark:text-gray-200 lg:hidden"
+            aria-label="Close sidebar"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <nav className="flex flex-1 flex-col gap-1.5 sm:gap-2">
           {menuItems.map((item) => {
             const Icon = item.icon;
 
@@ -61,7 +73,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                 to={item.path}
                 onClick={() => setIsOpen(false)}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group
+                  `flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm transition-all duration-300 group sm:py-3 sm:text-base
                   ${
                     isActive
                       ? "bg-gradient-to-r from-primary to-purple-500 text-black shadow-lg scale-[1.03]"
@@ -69,14 +81,14 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                   }`
                 }
               >
-                <Icon className="group-hover:scale-110 transition" size={20} />
+                <Icon className="transition group-hover:scale-110" size={18} />
                 <span className="font-medium">{item.name}</span>
               </NavLink>
             );
           })}
         </nav>
 
-        <div className="mt-auto text-xs text-gray-500 dark:text-gray-400 pt-6">
+        <div className="mt-auto pt-6 text-[11px] text-gray-500 dark:text-gray-400 sm:text-xs">
           AI Powered Monitoring
         </div>
       </aside>

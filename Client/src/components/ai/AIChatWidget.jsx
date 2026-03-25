@@ -1096,10 +1096,10 @@ const AIChatWidget = () => {
   if (!mounted) return null;
 
   return createPortal(
-    <div className="fixed bottom-4 right-4 z-[80] flex flex-col items-end md:bottom-6 md:right-6">
+    <div className="fixed bottom-3 left-3 right-3 z-[80] flex flex-col items-stretch md:bottom-6 md:left-auto md:right-6 md:items-end">
       {open && (
         <div
-          className={`mb-3 flex w-[min(336px,calc(100vw-1rem))] max-h-[calc(100vh-6rem)] flex-col overflow-hidden rounded-[26px] border shadow-[0_24px_80px_rgba(15,23,42,0.28)] backdrop-blur-2xl ${
+          className={`mb-3 flex w-full max-h-[calc(100dvh-6rem)] flex-col overflow-hidden rounded-[26px] border shadow-[0_24px_80px_rgba(15,23,42,0.28)] backdrop-blur-2xl md:w-[min(336px,calc(100vw-1rem))] ${
             darkMode
               ? "border-white/10 bg-slate-950/90 text-white"
               : "border-white/40 bg-white/92 text-slate-900"
@@ -1139,7 +1139,7 @@ const AIChatWidget = () => {
                 </button>
               </div>
 
-              <div className="mt-3 grid grid-cols-3 gap-1.5 rounded-2xl border border-white/10 bg-black/5 p-1 dark:bg-white/5">
+              <div className="mt-3 grid grid-cols-1 gap-1.5 rounded-2xl border border-white/10 bg-black/5 p-1 sm:grid-cols-3 dark:bg-white/5">
                 <button
                   onClick={() => setAssistantMode(ASSISTANT_MODES.chat)}
                   className={`inline-flex items-center justify-center gap-2 rounded-xl px-2.5 py-2 text-xs font-semibold transition ${
@@ -1175,7 +1175,7 @@ const AIChatWidget = () => {
                 </button>
               </div>
 
-              <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
                 <button
                   onClick={fetchForecast}
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800 dark:bg-white dark:text-slate-950"
@@ -1269,7 +1269,7 @@ const AIChatWidget = () => {
             </div>
           </div>
 
-          <div className="flex-1 min-h-0 space-y-3 overflow-y-auto px-3.5 py-3.5">
+          <div className="flex-1 min-h-0 space-y-3 overflow-y-auto px-3 py-3.5 sm:px-3.5">
             {messages.map((msg, idx) => {
               const isUser = msg.sender === "user";
               return (
@@ -1281,7 +1281,7 @@ const AIChatWidget = () => {
                   ) : null}
 
                     <div
-                    className={`min-w-0 max-w-[min(84%,30rem)] overflow-hidden rounded-[22px] px-4 py-3 text-sm leading-6 shadow-sm ${
+                    className={`min-w-0 max-w-[min(92%,30rem)] overflow-hidden rounded-[22px] px-4 py-3 text-sm leading-6 shadow-sm ${
                       isUser
                         ? "rounded-br-md bg-gradient-to-br from-primary to-yellow-300 text-slate-950"
                         : darkMode
@@ -1433,7 +1433,7 @@ const AIChatWidget = () => {
           ) : null}
 
           <div className="shrink-0 border-t border-white/10 p-3">
-            <div className="flex items-end gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
               <textarea
                 rows={1}
                 placeholder={
@@ -1455,7 +1455,7 @@ const AIChatWidget = () => {
               <button
                 onClick={() => sendMessage()}
                 disabled={loading}
-                className="inline-flex h-12 items-center justify-center rounded-2xl bg-gradient-to-r from-cyan-400 via-emerald-400 to-yellow-300 px-4 text-sm font-semibold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:-translate-y-0.5 disabled:opacity-50"
+                className="inline-flex h-12 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-cyan-400 via-emerald-400 to-yellow-300 px-4 text-sm font-semibold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:-translate-y-0.5 disabled:opacity-50 sm:w-12"
               >
                 <Send size={16} />
               </button>
@@ -1472,7 +1472,7 @@ const AIChatWidget = () => {
 
       <button
         onClick={() => setOpen(!open)}
-        className="group flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-cyan-400 via-emerald-400 to-yellow-300 text-slate-950 shadow-[0_20px_60px_rgba(34,211,238,0.35)] transition hover:scale-105 md:h-15 md:w-15"
+        className="group ml-auto flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-cyan-400 via-emerald-400 to-yellow-300 text-slate-950 shadow-[0_20px_60px_rgba(34,211,238,0.35)] transition hover:scale-105 md:ml-0 md:h-15 md:w-15"
         aria-label="Open AI chat"
       >
         <MessageCircle size={26} className="transition group-hover:scale-110" />

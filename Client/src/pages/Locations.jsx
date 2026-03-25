@@ -191,7 +191,7 @@ const Locations = () => {
         </div>
       </Card>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
           <Card key={stat.label} className="p-5">
             <p className="text-sm text-gray-500 dark:text-gray-400">{stat.label}</p>
@@ -222,7 +222,7 @@ const Locations = () => {
             </div>
           ) : (
             <div className="rounded-3xl border border-gray-200 bg-slate-950/95 p-4 dark:border-gray-800">
-              <svg viewBox={`0 0 ${width} ${height}`} className="h-[420px] w-full rounded-2xl">
+              <svg viewBox={`0 0 ${width} ${height}`} className="h-[280px] w-full rounded-2xl sm:h-[340px] md:h-[420px]">
                 <defs>
                   <linearGradient id="locationBg" x1="0%" y1="0%" x2="100%" y2="100%">
                     <stop offset="0%" stopColor="#0f172a" />
@@ -296,7 +296,7 @@ const Locations = () => {
                       </span>
                     </div>
 
-                    <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                    <div className="mt-3 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
                       <div className="rounded-xl border border-gray-200 px-3 py-2 dark:border-gray-800">
                         <p className="text-xs text-gray-500 dark:text-gray-400">Latitude</p>
                         <p className="mt-1 font-semibold text-gray-900 dark:text-white">{formatCoord(point.latitude)}</p>

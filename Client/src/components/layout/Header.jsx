@@ -109,7 +109,7 @@ const Header = ({ setIsOpen }) => {
       ref={headerRef}
       className="sticky top-0 z-30 border-b border-white/20 dark:border-gray-800 bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl shadow-sm"
     >
-      <div className="mx-auto flex min-h-[4.5rem] w-full max-w-[1600px] items-center justify-between gap-3 px-4 py-3 md:px-6">
+      <div className="mx-auto flex min-h-[4.5rem] w-full max-w-[1600px] flex-wrap items-center justify-between gap-3 px-3 py-3 sm:px-4 md:px-6">
         <div className="flex min-w-0 items-center gap-3">
           <button
             type="button"
@@ -136,7 +136,7 @@ const Header = ({ setIsOpen }) => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 md:gap-3">
+        <div className="flex items-center justify-end gap-2 md:gap-3">
           <div className="hidden items-center gap-2 rounded-full border border-emerald-500/15 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-300 lg:inline-flex">
             <span className="h-2 w-2 rounded-full bg-emerald-500" />
             Auto-refreshing
@@ -162,7 +162,7 @@ const Header = ({ setIsOpen }) => {
             </button>
 
             {alertMenuOpen && (
-              <div className="absolute right-0 mt-3 w-80 max-w-[85vw] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-800 dark:bg-gray-950">
+              <div className="absolute right-0 mt-3 w-[min(20rem,calc(100vw-1rem))] max-h-[calc(100dvh-5rem)] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-800 dark:bg-gray-950">
                 <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-800">
                   <div>
                     <p className="text-sm font-semibold text-gray-900 dark:text-white">Notifications</p>
@@ -264,7 +264,7 @@ const Header = ({ setIsOpen }) => {
             </button>
 
             {userMenuOpen && (
-              <div className="absolute right-0 mt-3 w-52 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-800 dark:bg-gray-950">
+              <div className="absolute right-0 mt-3 w-[min(14rem,calc(100vw-1rem))] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-800 dark:bg-gray-950">
                 <button
                   type="button"
                   onClick={() => {

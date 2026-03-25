@@ -57,88 +57,105 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-950 dark:to-gray-900">
-
-      <div className="w-full max-w-md bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl p-8">
-
-        <h2 className="text-3xl font-bold text-center mb-2 text-gray-900 dark:text-white">
-          Sustain<span className="text-primary">OS</span>
-        </h2>
-
-        <p className="text-center text-sm text-gray-500 dark:text-gray-400 mb-6">
-          Login to your dashboard
-        </p>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-
-          {/* EMAIL */}
-          <div className="flex items-center border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 bg-gray-50 dark:bg-gray-800">
-            <Mail size={18} className="text-gray-500" />
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full bg-transparent outline-none px-2 text-gray-900 dark:text-white"
-            />
+    <div className="min-h-[100dvh] overflow-x-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-4 py-6 text-white sm:px-6 lg:px-8">
+      <div className="mx-auto grid min-h-[calc(100dvh-3rem)] w-full max-w-6xl items-stretch gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="hidden overflow-hidden rounded-[2rem] border border-white/10 bg-[radial-gradient(circle_at_top_right,rgba(34,211,238,0.22),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(250,204,21,0.18),transparent_26%),linear-gradient(135deg,rgba(2,6,23,0.98),rgba(15,23,42,0.92))] p-10 text-white lg:flex lg:flex-col lg:justify-between">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-100">
+              SustainOS
+            </div>
+            <h1 className="mt-6 max-w-lg text-4xl font-bold leading-tight">
+              Login to a real-time sustainability cockpit built for campus ops.
+            </h1>
+            <p className="mt-4 max-w-xl text-sm leading-7 text-slate-300">
+              Watch live telemetry, see alerts before they grow, and keep the full sustainability workflow in one place.
+            </p>
           </div>
 
-          {/* PASSWORD */}
-          <div className="flex items-center border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 bg-gray-50 dark:bg-gray-800">
-            <Lock size={18} className="text-gray-500" />
-
-            <input
-              type={showPass ? "text" : "password"}
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full bg-transparent outline-none px-2 text-gray-900 dark:text-white"
-            />
-
-            {showPass ? (
-              <EyeOff
-                size={18}
-                className="cursor-pointer text-gray-500"
-                onClick={() => setShowPass(false)}
-              />
-            ) : (
-              <Eye
-                size={18}
-                className="cursor-pointer text-gray-500"
-                onClick={() => setShowPass(true)}
-              />
-            )}
+          <div className="grid grid-cols-1 gap-3 text-sm text-slate-200">
+            {[
+              "Live dashboard with energy and water insights",
+              "AI copilot for quick decisions and voice support",
+              "Mobile-ready controls for judges and demo screens",
+            ].map((item) => (
+              <div key={item} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                {item}
+              </div>
+            ))}
           </div>
+        </div>
 
-          {/* ERROR */}
-          {error && (
-            <p className="text-red-500 text-sm text-center">{error}</p>
-          )}
+        <div className="flex items-center justify-center">
+          <div className="w-full max-w-md rounded-[2rem] border border-white/10 bg-white/95 p-6 text-gray-900 shadow-2xl backdrop-blur-xl sm:p-8 dark:bg-gray-950/90 dark:text-white">
+            <h2 className="text-center text-3xl font-bold">
+              Sustain<span className="text-primary">OS</span>
+            </h2>
 
-          {/* BUTTON */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-primary text-black py-2 rounded-lg font-semibold hover:scale-105 transition"
-          >
-            {loading ? "Logging in..." : "Login"}
-          </button>
+            <p className="mt-2 text-center text-sm text-gray-500 dark:text-gray-400">
+              Login to your dashboard
+            </p>
 
-        </form>
+            <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+              <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 dark:border-gray-700 dark:bg-gray-800">
+                <Mail size={18} className="shrink-0 text-gray-500" />
+                <input
+                  type="email"
+                  placeholder="Email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="w-full min-w-0 bg-transparent outline-none text-gray-900 dark:text-white"
+                />
+              </div>
 
-        {/* REGISTER */}
-        <p className="text-center text-sm text-gray-600 dark:text-gray-400 mt-6">
-          Don't have an account?{" "}
-          <span
-            className="text-primary cursor-pointer hover:underline"
-            onClick={() => navigate("/register")}
-          >
-            Register
-          </span>
-        </p>
+              <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 dark:border-gray-700 dark:bg-gray-800">
+                <Lock size={18} className="shrink-0 text-gray-500" />
+                <input
+                  type={showPass ? "text" : "password"}
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="w-full min-w-0 bg-transparent outline-none text-gray-900 dark:text-white"
+                />
 
+                {showPass ? (
+                  <EyeOff
+                    size={18}
+                    className="cursor-pointer text-gray-500"
+                    onClick={() => setShowPass(false)}
+                  />
+                ) : (
+                  <Eye
+                    size={18}
+                    className="cursor-pointer text-gray-500"
+                    onClick={() => setShowPass(true)}
+                  />
+                )}
+              </div>
+
+              {error ? <p className="text-center text-sm text-red-500">{error}</p> : null}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full rounded-xl bg-primary py-3 font-semibold text-black transition hover:scale-[1.01] disabled:opacity-60"
+              >
+                {loading ? "Logging in..." : "Login"}
+              </button>
+            </form>
+
+            <p className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
+              Don't have an account?{" "}
+              <span
+                className="cursor-pointer text-primary hover:underline"
+                onClick={() => navigate("/register")}
+              >
+                Register
+              </span>
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -404,7 +404,7 @@ const Profile = () => {
               <SustainabilityGauge score={score} />
             </div>
 
-            <div className="mt-6 grid grid-cols-2 gap-3">
+            <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="rounded-xl border border-gray-200 dark:border-gray-800 p-3">
                 <p className="text-xs text-gray-500 dark:text-gray-400">Profile Completion</p>
                 <p className="text-2xl font-bold mt-1">{completion}%</p>

@@ -205,7 +205,7 @@ const Sensors = () => {
         </div>
       </Card>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 xl:grid-cols-7">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
         {stats.map((item) => (
           <Card key={item.label} className="p-5">
             <p className="text-sm text-gray-500 dark:text-gray-400">{item.label}</p>
@@ -235,7 +235,7 @@ const Sensors = () => {
               placeholder="Sensor name"
               className="w-full rounded-lg border border-gray-200 bg-white p-3 text-black dark:border-gray-700 dark:bg-gray-800 dark:text-white"
             />
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <input
                 name="building"
                 value={form.building}
@@ -251,7 +251,7 @@ const Sensors = () => {
                 className="w-full rounded-lg border border-gray-200 bg-white p-3 text-black dark:border-gray-700 dark:bg-gray-800 dark:text-white"
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <input
                 name="latitude"
                 type="number"
@@ -271,7 +271,7 @@ const Sensors = () => {
                 className="w-full rounded-lg border border-gray-200 bg-white p-3 text-black dark:border-gray-700 dark:bg-gray-800 dark:text-white"
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <input
                 name="sensorType"
                 value={form.sensorType}
@@ -287,7 +287,7 @@ const Sensors = () => {
                 className="w-full rounded-lg border border-gray-200 bg-white p-3 text-black dark:border-gray-700 dark:bg-gray-800 dark:text-white"
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <input
                 name="batteryLevel"
                 type="number"
@@ -377,7 +377,7 @@ const Sensors = () => {
                       </p>
                     </div>
 
-                    <div className="grid min-w-[240px] grid-cols-2 gap-3 text-sm">
+                    <div className="grid w-full grid-cols-1 gap-3 text-sm sm:grid-cols-2">
                       <div className="rounded-xl border border-gray-200 px-3 py-2 dark:border-gray-800">
                         <p className="text-gray-500 dark:text-gray-400">Battery</p>
                         <p className="mt-1 font-semibold text-gray-900 dark:text-white">

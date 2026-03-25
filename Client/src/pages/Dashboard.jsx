@@ -209,7 +209,7 @@ const Dashboard = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 min-w-[280px]">
+            <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 xl:w-[420px] xl:shrink-0">
               {quickStats.map((item) => {
                 const Icon = item.icon;
                 return (

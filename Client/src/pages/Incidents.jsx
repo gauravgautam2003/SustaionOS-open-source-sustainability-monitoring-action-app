@@ -85,7 +85,7 @@ const Incidents = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 min-w-[280px]">
+          <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:w-[320px]">
             {[
               { label: "Open", value: openCount, icon: AlertTriangle },
               { label: "Critical", value: criticalCount, icon: SlidersHorizontal },

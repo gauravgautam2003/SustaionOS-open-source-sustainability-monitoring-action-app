@@ -154,7 +154,7 @@ const Buildings = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3 text-sm">
+                <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
                   <div className="rounded-xl border border-gray-200 dark:border-gray-800 px-4 py-3">
                     <p className="text-gray-500 dark:text-gray-400">Energy</p>
                     <p className="mt-1 font-semibold text-gray-900 dark:text-white">{item.energy} kWh</p>

@@ -2,7 +2,51 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  html,
+  body,
+  #root {
+    width: 100%;
+    min-height: 100%;
+  }
 
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: #f4f7fb;
+  }
+
+  body.dark {
+    background: #060b16;
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  img,
+  svg,
+  video,
+  canvas {
+    max-width: 100%;
+    height: auto;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+}
 
 @keyframes fadeIn {
   from {
@@ -18,8 +62,6 @@
 .animate-fadeIn {
   animation: fadeIn 0.2s ease-in-out;
 }
-
-
 
 @keyframes shimmer {
   0% {
@@ -40,4 +82,3 @@
   background-size: 1000px 100%;
   animation: shimmer 1.5s infinite linear;
 }
-

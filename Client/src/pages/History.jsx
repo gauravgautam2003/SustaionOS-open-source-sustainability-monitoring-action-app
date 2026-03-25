@@ -121,12 +121,12 @@ const History = () => {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold">Usage History</h1>
           <p className="text-gray-500">Sustainability logs and analytics</p>
         </div>
-        <button onClick={exportCSV} className="bg-primary px-4 py-2 rounded-lg">
+        <button onClick={exportCSV} className="w-full rounded-lg bg-primary px-4 py-2 sm:w-auto">
           Export CSV
         </button>
       </div>
@@ -144,13 +144,26 @@ const History = () => {
       </div>
 
       {/* Trend Chart */}
-      <Card>
+      <Card className="overflow-hidden">
         <h3 className="text-lg font-semibold mb-4">Energy & Water Trend</h3>
-        <Line data={chartData} />
+        <div className="relative h-72 sm:h-80 md:h-96">
+          <Line
+            data={chartData}
+            options={{
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  position: "bottom",
+                },
+              },
+            }}
+          />
+        </div>
       </Card>
 
       {/* Filters */}
-      <div className="flex flex-col md:flex-row gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row">
         <input
           type="text"
           placeholder="Search building..."
@@ -172,7 +185,7 @@ const History = () => {
 
       {/* Table */}
       <Card className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="min-w-[720px] w-full text-sm">
           <thead className="border-b">
             <tr>
               <th className="px-6 py-4">Date</th>
