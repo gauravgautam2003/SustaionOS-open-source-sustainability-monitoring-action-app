@@ -16,6 +16,7 @@ import {
 import { ThemeContext } from "../../context/ThemeContext";
 import { getAuthToken } from "../../utils/auth";
 import { apiUrl } from "../../utils/api";
+import { lockBodyScroll, unlockBodyScroll } from "../../utils/scrollLock";
 
 const seedSuggestions = [
   "What can you do?",
@@ -564,6 +565,15 @@ const AIChatWidget = () => {
   }, [open]);
 
   useEffect(() => {
+    if (open) {
+      lockBodyScroll("ai-chat");
+      return;
+    }
+
+    unlockBodyScroll("ai-chat");
+  }, [open]);
+
+  useEffect(() => {
     setProfileDraft((current) => {
       const cleaned = sanitizeProfileDraft(current);
       if (cleaned.name === current.name && cleaned.building === current.building) return current;
@@ -1101,13 +1111,22 @@ const AIChatWidget = () => {
   if (!mounted) return null;
 
   return createPortal(
-    <div className="fixed bottom-3 right-3 z-[80] flex flex-col items-end md:bottom-6 md:right-6">
+    <div className="fixed inset-0 z-[80]">
+      {open && (
+        <button
+          type="button"
+          aria-label="Close AI overlay"
+          onClick={() => setOpen(false)}
+          className="absolute inset-0 bg-slate-950/45 backdrop-blur-[2px]"
+        />
+      )}
+
       {open && (
         <div
-          className={`mb-3 flex w-[min(21.5rem,calc(100vw-1rem))] max-h-[calc(100dvh-8rem)] flex-col overflow-hidden rounded-[26px] border shadow-[0_24px_80px_rgba(15,23,42,0.28)] backdrop-blur-2xl md:w-[min(336px,calc(100vw-1rem))] ${
+          className={`absolute inset-0 pointer-events-auto flex h-[100dvh] w-full flex-col overflow-hidden rounded-none border-0 shadow-none backdrop-blur-2xl md:inset-auto md:bottom-6 md:right-6 md:left-auto md:top-auto md:h-[min(80dvh,44rem)] md:w-[min(22rem,calc(100vw-2rem))] md:rounded-[26px] md:border md:shadow-[0_24px_80px_rgba(15,23,42,0.28)] ${
             darkMode
-              ? "border-white/10 bg-slate-950/90 text-white"
-              : "border-white/40 bg-white/92 text-slate-900"
+              ? "border-white/10 bg-slate-950/95 text-white"
+              : "border-white/40 bg-white/96 text-slate-900"
           }`}
         >
           <div className="relative shrink-0 overflow-hidden">
@@ -1487,13 +1506,15 @@ const AIChatWidget = () => {
         </div>
       )}
 
-      <button
-        onClick={() => setOpen(!open)}
-        className="group ml-auto flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-cyan-400 via-emerald-400 to-yellow-300 text-slate-950 shadow-[0_20px_60px_rgba(34,211,238,0.35)] transition hover:scale-105 md:ml-0 md:h-15 md:w-15"
-        aria-label="Open AI chat"
-      >
-        <MessageCircle size={26} className="transition group-hover:scale-110" />
-      </button>
+      {!open && (
+        <button
+          onClick={() => setOpen(true)}
+          className="absolute bottom-3 right-3 group flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-cyan-400 via-emerald-400 to-yellow-300 text-slate-950 shadow-[0_20px_60px_rgba(34,211,238,0.35)] transition hover:scale-105 md:bottom-6 md:right-6 md:h-15 md:w-15"
+          aria-label="Open AI chat"
+        >
+          <MessageCircle size={26} className="transition group-hover:scale-110" />
+        </button>
+      )}
     </div>,
     document.body
   );
