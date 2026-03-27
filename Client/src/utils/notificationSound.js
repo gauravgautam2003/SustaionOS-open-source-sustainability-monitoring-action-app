@@ -84,6 +84,56 @@ const playHornBlast = (ctx, { startAt, rootFrequency, duration = 0.22, gain = 0.
   });
 };
 
+const playSirenSweep = (ctx, { startAt, fromFrequency, toFrequency, duration = 0.34, gain = 0.18 }) => {
+  scheduleTone(ctx, {
+    startAt,
+    frequency: fromFrequency,
+    sweepTo: toFrequency,
+    duration,
+    gain,
+    type: "sawtooth",
+  });
+  scheduleTone(ctx, {
+    startAt,
+    frequency: fromFrequency * 1.5,
+    sweepTo: toFrequency * 1.45,
+    duration: duration - 0.02,
+    gain: gain * 0.7,
+    type: "square",
+  });
+  scheduleTone(ctx, {
+    startAt,
+    frequency: Math.max(180, fromFrequency / 2),
+    sweepTo: Math.max(180, toFrequency / 2),
+    duration: duration + 0.04,
+    gain: gain * 0.42,
+    type: "triangle",
+  });
+};
+
+const playEmergencySiren = (ctx, { startAt, cycles = 5, gain = 0.2 }) => {
+  const cycleDuration = 0.34;
+
+  for (let index = 0; index < cycles; index += 1) {
+    const cycleStart = startAt + index * cycleDuration;
+    const upward = index % 2 === 0;
+    playSirenSweep(ctx, {
+      startAt: cycleStart,
+      fromFrequency: upward ? 560 : 960,
+      toFrequency: upward ? 960 : 560,
+      duration: cycleDuration,
+      gain: gain * (index === cycles - 1 ? 0.92 : 1),
+    });
+  }
+
+  playHornBlast(ctx, {
+    startAt: startAt + cycles * cycleDuration - 0.06,
+    rootFrequency: 440,
+    duration: 0.28,
+    gain: gain * 0.92,
+  });
+};
+
 const resolveSoundProfile = ({ priority = "LOW", type = "SYSTEM", title = "", message = "" } = {}) => {
   const severity = String(priority || "").toUpperCase();
   const category = String(type || "").toUpperCase();
@@ -94,7 +144,7 @@ const resolveSoundProfile = ({ priority = "LOW", type = "SYSTEM", title = "", me
     /(spike|high|critical|urgent|detected|alert|warning)/.test(text);
 
   if (resourceSpike && (severity === "HIGH" || category === "ALERT")) {
-    return "resource-horn";
+    return "resource-siren";
   }
 
   if (severity === "HIGH" || category === "ALERT") {
@@ -158,10 +208,8 @@ export const playAlertSound = async ({ priority = "LOW", type = "SYSTEM", title 
   const profile = resolveSoundProfile({ priority, type, title, message });
   const baseTime = ctx.currentTime + 0.02;
 
-  if (profile === "resource-horn") {
-    playHornBlast(ctx, { startAt: baseTime, rootFrequency: 392, duration: 0.24, gain: 0.22 });
-    playHornBlast(ctx, { startAt: baseTime + 0.22, rootFrequency: 440, duration: 0.24, gain: 0.24 });
-    playHornBlast(ctx, { startAt: baseTime + 0.48, rootFrequency: 392, duration: 0.28, gain: 0.2 });
+  if (profile === "resource-siren") {
+    playEmergencySiren(ctx, { startAt: baseTime, cycles: 5, gain: 0.22 });
   } else if (profile === "urgent-chime") {
     playLayeredTone(ctx, { startAt: baseTime, frequency: 784, duration: 0.14, gain: 0.14, type: "triangle" });
     playLayeredTone(ctx, { startAt: baseTime + 0.16, frequency: 1046, duration: 0.16, gain: 0.16, type: "triangle" });
