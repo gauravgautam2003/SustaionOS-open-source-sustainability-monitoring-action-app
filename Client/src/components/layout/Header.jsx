@@ -1,11 +1,17 @@
 import React, { useContext, useEffect, useRef, useState } from "react";
-import { Bell, ChevronDown, ExternalLink, Menu, Sparkles, AlertTriangle } from "lucide-react";
+import { Bell, ChevronDown, ExternalLink, Menu, Sparkles, AlertTriangle, Volume2, VolumeX } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ThemeContext } from "../../context/ThemeContext";
 import { AuthContext } from "../../context/auth-context";
 import { getAuthToken } from "../../utils/auth";
 import { apiUrl } from "../../utils/api";
 import socket from "../../utils/socket";
+import {
+  isAlertSoundEnabled,
+  playAlertSound,
+  primeAlertAudio,
+  setAlertSoundEnabled,
+} from "../../utils/notificationSound";
 
 const routeLabels = {
   "/": "Dashboard Overview",
@@ -32,6 +38,7 @@ const Header = ({ setIsOpen }) => {
   const [alertMenuOpen, setAlertMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [soundEnabled, setSoundEnabled] = useState(() => isAlertSoundEnabled());
 
   const headerRef = useRef(null);
 
@@ -45,6 +52,10 @@ const Header = ({ setIsOpen }) => {
 
     document.addEventListener("mousedown", onPointerDown);
     return () => document.removeEventListener("mousedown", onPointerDown);
+  }, []);
+
+  useEffect(() => {
+    primeAlertAudio();
   }, []);
 
   useEffect(() => {
@@ -76,6 +87,7 @@ const Header = ({ setIsOpen }) => {
       if (String(notification.userId || "") !== String(user?._id || "")) return;
       setNotifications((prev) => [notification, ...prev].slice(0, 6));
       setUnreadCount((count) => count + 1);
+      playAlertSound({ priority: notification.priority, type: notification.type });
     };
 
     socket.on("newNotification", onNewNotification);
@@ -84,6 +96,12 @@ const Header = ({ setIsOpen }) => {
       socket.off("newNotification", onNewNotification);
     };
   }, [user?._id]);
+
+  const toggleAlertSound = () => {
+    const nextValue = !soundEnabled;
+    setSoundEnabled(nextValue);
+    setAlertSoundEnabled(nextValue);
+  };
 
   const markNotificationRead = async (id) => {
     try {
@@ -287,6 +305,20 @@ const Header = ({ setIsOpen }) => {
                   className="w-full px-4 py-3 text-left text-sm text-gray-700 transition hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-900"
                 >
                   {darkMode ? "Light mode" : "Dark mode"}
+                </button>
+
+                <div className="border-t border-gray-100 dark:border-gray-800" />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    toggleAlertSound();
+                    setUserMenuOpen(false);
+                  }}
+                  className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm text-gray-700 transition hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-900"
+                >
+                  <span>{soundEnabled ? "Alert sound on" : "Alert sound off"}</span>
+                  {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
                 </button>
 
                 <div className="border-t border-gray-100 dark:border-gray-800" />
