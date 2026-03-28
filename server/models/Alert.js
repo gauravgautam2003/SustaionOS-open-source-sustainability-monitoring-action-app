@@ -40,6 +40,44 @@ const schema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  ownerName: {
+    type: String,
+    default: ""
+  },
+  ownerTeam: {
+    type: String,
+    default: ""
+  },
+  slaMinutes: {
+    type: Number,
+    default: null
+  },
+  responseDueAt: {
+    type: Date,
+    default: null
+  },
+  escalationLevel: {
+    type: Number,
+    default: 0
+  },
+  escalatedAt: {
+    type: Date,
+    default: null
+  },
+  escalationReason: {
+    type: String,
+    default: ""
+  },
+  escalationHistory: {
+    type: [
+      {
+        level: { type: Number, default: 1 },
+        reason: { type: String, default: "" },
+        at: { type: Date, default: Date.now }
+      }
+    ],
+    default: []
+  },
   resolvedAt: {
     type: Date,
     default: null
@@ -53,5 +91,7 @@ const schema = new mongoose.Schema({
 schema.index({ userId: 1, time: -1 });
 schema.index({ userId: 1, status: 1, time: -1 });
 schema.index({ userId: 1, severity: 1, status: 1, time: -1 });
+schema.index({ userId: 1, status: 1, responseDueAt: 1 });
+schema.index({ userId: 1, escalationLevel: -1, time: -1 });
 
 module.exports = mongoose.model("Alert", schema);

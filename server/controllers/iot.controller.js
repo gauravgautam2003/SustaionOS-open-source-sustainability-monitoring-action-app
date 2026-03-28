@@ -6,6 +6,7 @@ const scoreService = require("../services/sustainabilityScore.engine");
 const { detect } = require("../services/detection.service");
 const { getUserSettings } = require("../services/userSettings.service");
 const { buildResourceAlertContext } = require("../services/alertPolicy.service");
+const { enrichAlertPayload } = require("../services/incidentWorkflow.service");
 
 const normalizeNumber = (value) => {
   const n = Number(value);
@@ -114,7 +115,7 @@ exports.ingestMqtt = async (req, res) => {
         recommendedAction: alertContext.recommendedAction,
       });
 
-      if (alert && global.io) global.io.emit("newAlert", alert);
+      if (alert && global.io) global.io.emit("newAlert", enrichAlertPayload(alert));
       if (alert) {
         await notificationService.createNotification({
           userId: req.user._id,

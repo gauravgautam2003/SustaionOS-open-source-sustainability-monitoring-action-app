@@ -1,4 +1,5 @@
 const Alert = require("../models/Alert");
+const { prepareAlertForCreate } = require("./incidentWorkflow.service");
 
 exports.createAlert = async ({
   userId,
@@ -11,7 +12,7 @@ exports.createAlert = async ({
   recommendedAction = "",
 }) => {
   try {
-    const alert = await Alert.create({
+    const alert = await Alert.create(prepareAlertForCreate({
       userId,
       building,
       message,
@@ -20,7 +21,7 @@ exports.createAlert = async ({
       rootCause,
       estimatedLoss,
       recommendedAction,
-    });
+    }));
 
     return alert;
 

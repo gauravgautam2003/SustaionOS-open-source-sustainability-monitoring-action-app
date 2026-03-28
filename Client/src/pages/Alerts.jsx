@@ -10,7 +10,17 @@ import {
   ShieldAlert,
   Layers3,
   RotateCcw,
+  Siren,
+  UserCheck,
+  Clock3,
 } from "lucide-react";
+import {
+  formatIncidentDeadline,
+  formatIncidentOwner,
+  formatIncidentWindow,
+  getEscalationBadge,
+  getIncidentMeta,
+} from "../utils/incidentAlert";
 
 const statusOrder = ["OPEN", "ACKNOWLEDGED", "IN_PROGRESS", "RESOLVED"];
 
@@ -87,6 +97,8 @@ const Alerts = () => {
   const criticalAlerts = alerts.filter(
     (a) => (a.severity || "").toUpperCase() === "HIGH" && (a.status || "OPEN") !== "RESOLVED"
   );
+  const escalatedAlerts = alerts.filter((a) => getIncidentMeta(a).escalationLevel > 0 && (a.status || "OPEN") !== "RESOLVED");
+  const breachedAlerts = alerts.filter((a) => getIncidentMeta(a).isOverdue && (a.status || "OPEN") !== "RESOLVED");
   const totalLoss = alerts.reduce((sum, alert) => sum + Number(alert.estimatedLoss || 0), 0);
 
   return (
@@ -132,6 +144,14 @@ const Alerts = () => {
           <h2 className="text-3xl font-bold mt-2 text-emerald-500">
             {alerts.filter((a) => (a.status || "OPEN") === "RESOLVED").length}
           </h2>
+        </Card>
+        <Card className="p-5">
+          <p className="text-sm text-gray-500 dark:text-gray-400">Escalated</p>
+          <h2 className="text-3xl font-bold mt-2 text-amber-500">{escalatedAlerts.length}</h2>
+        </Card>
+        <Card className="p-5">
+          <p className="text-sm text-gray-500 dark:text-gray-400">SLA Breached</p>
+          <h2 className="text-3xl font-bold mt-2 text-red-500">{breachedAlerts.length}</h2>
         </Card>
       </div>
 
@@ -187,6 +207,10 @@ const Alerts = () => {
         <div className="grid grid-cols-1 gap-4">
           {filteredAlerts.map((alert) => (
             <Card key={alert._id} className="p-5">
+              {(() => {
+                const meta = getIncidentMeta(alert);
+                const escalationBadge = getEscalationBadge(alert);
+                return (
               <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                 <div className="flex items-start gap-4">
                   <div
@@ -214,11 +238,48 @@ const Alerts = () => {
                       >
                         {alert.severity || "LOW"}
                       </span>
+                      {escalationBadge ? (
+                        <span className="text-xs px-2 py-1 rounded-full border border-amber-500/20 bg-amber-500/10 text-amber-500">
+                          {escalationBadge}
+                        </span>
+                      ) : null}
+                      {meta.isOverdue ? (
+                        <span className="text-xs px-2 py-1 rounded-full border border-red-500/20 bg-red-500/10 text-red-500">
+                          SLA BREACHED
+                        </span>
+                      ) : null}
                     </div>
 
                     <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 max-w-3xl">
                       {alert.message}
                     </p>
+
+                    <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                      <div className="rounded-xl border border-gray-200 dark:border-gray-800 p-3">
+                        <div className="flex items-center gap-2 font-medium">
+                          <UserCheck size={14} />
+                          Incident owner
+                        </div>
+                        <p className="mt-1 text-gray-600 dark:text-gray-400">{formatIncidentOwner(alert)}</p>
+                      </div>
+                      <div className="rounded-xl border border-gray-200 dark:border-gray-800 p-3">
+                        <div className="flex items-center gap-2 font-medium">
+                          <Clock3 size={14} />
+                          Response window
+                        </div>
+                        <p className="mt-1 text-gray-600 dark:text-gray-400">{formatIncidentWindow(alert)}</p>
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{formatIncidentDeadline(alert)}</p>
+                      </div>
+                      <div className="rounded-xl border border-gray-200 dark:border-gray-800 p-3">
+                        <div className="flex items-center gap-2 font-medium">
+                          <Siren size={14} />
+                          Escalation
+                        </div>
+                        <p className="mt-1 text-gray-600 dark:text-gray-400">
+                          {escalationBadge || "Monitoring"}
+                        </p>
+                      </div>
+                    </div>
 
                     <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                       {alert.rootCause && (
@@ -252,6 +313,18 @@ const Alerts = () => {
                   <p className="text-sm font-semibold">Rs. {alert.estimatedLoss || 0}</p>
                   <div className="flex flex-wrap gap-2">
                     <button
+                      onClick={() => updateAlert(alert._id, { assignToSelf: true })}
+                      className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 text-sm"
+                    >
+                      Take ownership
+                    </button>
+                    <button
+                      onClick={() => updateAlert(alert._id, { escalate: true, escalationReason: "Escalated from alert center." })}
+                      className="px-3 py-1.5 rounded-lg bg-amber-500 text-white text-sm"
+                    >
+                      Escalate
+                    </button>
+                    <button
                       onClick={() => updateAlert(alert._id, { status: "ACKNOWLEDGED" })}
                       className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 text-sm"
                     >
@@ -272,6 +345,8 @@ const Alerts = () => {
                   </div>
                 </div>
               </div>
+                );
+              })()}
             </Card>
           ))}
         </div>

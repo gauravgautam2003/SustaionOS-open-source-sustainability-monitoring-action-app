@@ -6,6 +6,7 @@ const scoreService = require("../services/sustainabilityScore.engine");
 const SensorDevice = require("../models/SensorDevice");
 const { getUserSettings } = require("../services/userSettings.service");
 const { buildResourceAlertContext } = require("../services/alertPolicy.service");
+const { enrichAlertPayload } = require("../services/incidentWorkflow.service");
 
 const syncSensorHeartbeat = async (userId, payload) => {
   const sensorId = (payload?.sensorId || "").toString().trim();
@@ -112,7 +113,7 @@ const sendData = async (req, res) => {
           recommendedAction: alertContext.recommendedAction,
         });
 
-        if (alert && global.io) global.io.emit("newAlert", alert);
+        if (alert && global.io) global.io.emit("newAlert", enrichAlertPayload(alert));
         if (alert) {
           await notificationService.createNotification({
             userId: req.user._id,

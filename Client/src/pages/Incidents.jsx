@@ -8,8 +8,17 @@ import {
   RefreshCcw,
   ShieldAlert,
   SlidersHorizontal,
+  Siren,
+  UserCheck,
 } from "lucide-react";
 import { apiUrl } from "../utils/api";
+import {
+  formatIncidentDeadline,
+  formatIncidentOwner,
+  formatIncidentWindow,
+  getEscalationBadge,
+  getIncidentMeta,
+} from "../utils/incidentAlert";
 
 const toneMap = {
   HIGH: "border-red-500/20 bg-red-500/10 text-red-500",
@@ -51,6 +60,30 @@ const Incidents = () => {
     loadAlerts();
   }, []);
 
+  const updateAlert = async (id, payload) => {
+    try {
+      const token = getAuthToken();
+      if (!token) return;
+
+      const res = await fetch(apiUrl(`/api/alerts/${id}`), {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) return;
+      const json = await res.json();
+      if (json?.alert) {
+        setAlerts((prev) => prev.map((item) => (item._id === json.alert._id ? json.alert : item)));
+      }
+    } catch (err) {
+      console.error("Incident update failed:", err);
+    }
+  };
+
   const filtered = useMemo(
     () =>
       alerts.filter((item) => {
@@ -66,6 +99,8 @@ const Incidents = () => {
     (a) => (a.severity || "").toUpperCase() === "HIGH" && (a.status || "OPEN") !== "RESOLVED"
   ).length;
   const resolvedCount = alerts.filter((a) => (a.status || "OPEN") === "RESOLVED").length;
+  const escalatedCount = alerts.filter((a) => getIncidentMeta(a).escalationLevel > 0 && (a.status || "OPEN") !== "RESOLVED").length;
+  const breachedCount = alerts.filter((a) => getIncidentMeta(a).isOverdue && (a.status || "OPEN") !== "RESOLVED").length;
   const totalLoss = alerts.reduce((sum, item) => sum + Number(item.estimatedLoss || 0), 0);
 
   return (
@@ -91,6 +126,8 @@ const Incidents = () => {
               { label: "Critical", value: criticalCount, icon: SlidersHorizontal },
               { label: "Resolved", value: resolvedCount, icon: CheckCircle2 },
               { label: "Loss", value: `Rs. ${totalLoss}`, icon: Clock3 },
+              { label: "Escalated", value: escalatedCount, icon: Siren },
+              { label: "Breached", value: breachedCount, icon: ShieldAlert },
             ].map((item) => {
               const Icon = item.icon;
               return (
@@ -164,6 +201,8 @@ const Incidents = () => {
           {filtered.map((alert) => {
             const severity = (alert.severity || "LOW").toUpperCase();
             const status = (alert.status || "OPEN").toUpperCase();
+            const meta = getIncidentMeta(alert);
+            const escalationBadge = getEscalationBadge(alert);
             return (
               <Card key={alert._id} className="p-5 border border-gray-200 dark:border-gray-800">
                 <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
@@ -176,8 +215,42 @@ const Incidents = () => {
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{alert.building || "System"}</h3>
                         <span className="text-xs px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-800">{status}</span>
                         <span className={`text-xs px-2 py-1 rounded-full border ${toneMap[severity] || toneMap.LOW}`}>{severity}</span>
+                        {escalationBadge ? (
+                          <span className="text-xs px-2 py-1 rounded-full border border-amber-500/20 bg-amber-500/10 text-amber-500">
+                            {escalationBadge}
+                          </span>
+                        ) : null}
+                        {meta.isOverdue ? (
+                          <span className="text-xs px-2 py-1 rounded-full border border-red-500/20 bg-red-500/10 text-red-500">
+                            SLA BREACHED
+                          </span>
+                        ) : null}
                       </div>
                       <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 max-w-3xl">{alert.message}</p>
+                      <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                        <div className="rounded-xl border border-gray-200 dark:border-gray-800 p-3">
+                          <div className="flex items-center gap-2 font-medium">
+                            <UserCheck size={14} />
+                            Owner
+                          </div>
+                          <p className="mt-1 text-gray-600 dark:text-gray-400">{formatIncidentOwner(alert)}</p>
+                        </div>
+                        <div className="rounded-xl border border-gray-200 dark:border-gray-800 p-3">
+                          <div className="flex items-center gap-2 font-medium">
+                            <Clock3 size={14} />
+                            Response window
+                          </div>
+                          <p className="mt-1 text-gray-600 dark:text-gray-400">{formatIncidentWindow(alert)}</p>
+                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{formatIncidentDeadline(alert)}</p>
+                        </div>
+                        <div className="rounded-xl border border-gray-200 dark:border-gray-800 p-3">
+                          <div className="flex items-center gap-2 font-medium">
+                            <Siren size={14} />
+                            Escalation
+                          </div>
+                          <p className="mt-1 text-gray-600 dark:text-gray-400">{escalationBadge || "Monitoring"}</p>
+                        </div>
+                      </div>
                       <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                         {alert.rootCause && (
                           <div className="rounded-xl border border-gray-200 dark:border-gray-800 p-3">
@@ -205,6 +278,26 @@ const Incidents = () => {
                       {new Date(alert.time || alert.createdAt).toLocaleString()}
                     </p>
                     <p className="text-sm font-semibold">Rs. {alert.estimatedLoss || 0}</p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => updateAlert(alert._id, { assignToSelf: true })}
+                        className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 text-sm"
+                      >
+                        Own
+                      </button>
+                      <button
+                        onClick={() => updateAlert(alert._id, { escalate: true, escalationReason: "Escalated from incidents page." })}
+                        className="px-3 py-1.5 rounded-lg bg-amber-500 text-white text-sm"
+                      >
+                        Escalate
+                      </button>
+                      <button
+                        onClick={() => updateAlert(alert._id, { status: "RESOLVED" })}
+                        className="px-3 py-1.5 rounded-lg bg-emerald-500 text-white text-sm"
+                      >
+                        Resolve
+                      </button>
+                    </div>
                   </div>
                 </div>
               </Card>
