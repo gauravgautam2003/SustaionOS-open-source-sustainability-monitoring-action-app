@@ -54,4 +54,8 @@ const schema = new mongoose.Schema(
   { timestamps: true }
 );
 
+schema.index({ userId: 1, createdAt: -1 });
+schema.index({ userId: 1, read: 1, createdAt: -1 });
+schema.index({ userId: 1, dedupeKey: 1, createdAt: -1 });
+
 module.exports = mongoose.model("Notification", schema);

@@ -20,4 +20,8 @@ const schema = new mongoose.Schema(
   { timestamps: true }
 );
 
+schema.index({ userId: 1, timestamp: -1 });
+schema.index({ userId: 1, building: 1, timestamp: -1 });
+schema.index({ userId: 1, sensorId: 1, timestamp: -1 });
+
 module.exports = mongoose.model("Data", schema);

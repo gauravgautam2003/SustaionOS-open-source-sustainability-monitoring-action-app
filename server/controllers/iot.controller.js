@@ -4,6 +4,8 @@ const alertService = require("../services/alert.service");
 const notificationService = require("../services/notification.service");
 const scoreService = require("../services/sustainabilityScore.engine");
 const { detect } = require("../services/detection.service");
+const { getUserSettings } = require("../services/userSettings.service");
+const { buildResourceAlertContext } = require("../services/alertPolicy.service");
 
 const normalizeNumber = (value) => {
   const n = Number(value);
@@ -91,19 +93,45 @@ exports.ingestMqtt = async (req, res) => {
 
     const sensor = await syncSensor(req.user._id, { ...payload, protocol: "MQTT" });
 
+    const userSettings = await getUserSettings(req.user._id);
     const recent = await Data.find({ userId: req.user._id }).sort({ timestamp: -1 }).limit(20);
     const detection = await detect(data.water, data.energy, recent);
+    const alertContext = buildResourceAlertContext({
+      detection,
+      reading: data,
+      history: recent,
+      settings: userSettings,
+    });
 
-    if (detection?.status) {
-      await alertService.createAlert({
+    if (alertContext) {
+      const alert = await alertService.createAlert({
         userId: req.user._id,
         building,
-        message: `${detection.reason}${detection.score ? ` (score:${detection.score})` : ""}`,
-        severity: (detection.severity || "LOW").toString().toUpperCase(),
-        rootCause: detection.rootCause || "Gateway anomaly",
-        estimatedLoss: Math.round(normalizeNumber(data.energy) * 8 + normalizeNumber(data.water) * 0.02),
-        recommendedAction: detection.recommendation || "Inspect the sensor/gateway path.",
+        message: alertContext.message,
+        severity: alertContext.severity,
+        rootCause: alertContext.rootCause,
+        estimatedLoss: alertContext.estimatedLoss,
+        recommendedAction: alertContext.recommendedAction,
       });
+
+      if (alert && global.io) global.io.emit("newAlert", alert);
+      if (alert) {
+        await notificationService.createNotification({
+          userId: req.user._id,
+          type: "ALERT",
+          title: alertContext.notification.title,
+          message: alertContext.notification.message,
+          link: "/alerts",
+          priority: alertContext.notification.priority,
+          dedupeKey: alertContext.notification.dedupeKey,
+          metadata: {
+            ...alertContext.notification.metadata,
+            alertId: alert._id,
+            building: alert.building,
+            severity: alert.severity,
+          },
+        });
+      }
     }
 
     const score = await scoreService.calculateScore(req.user._id);

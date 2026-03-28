@@ -50,4 +50,8 @@ const schema = new mongoose.Schema({
   }
 });
 
+schema.index({ userId: 1, time: -1 });
+schema.index({ userId: 1, status: 1, time: -1 });
+schema.index({ userId: 1, severity: 1, status: 1, time: -1 });
+
 module.exports = mongoose.model("Alert", schema);

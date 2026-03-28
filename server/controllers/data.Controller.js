@@ -4,6 +4,8 @@ const alertService = require("../services/alert.service");
 const notificationService = require("../services/notification.service");
 const scoreService = require("../services/sustainabilityScore.engine");
 const SensorDevice = require("../models/SensorDevice");
+const { getUserSettings } = require("../services/userSettings.service");
+const { buildResourceAlertContext } = require("../services/alertPolicy.service");
 
 const syncSensorHeartbeat = async (userId, payload) => {
   const sensorId = (payload?.sensorId || "").toString().trim();
@@ -89,51 +91,25 @@ const sendData = async (req, res) => {
     if (global.io) global.io.emit("newData", saved);
 
     try {
+      const userSettings = await getUserSettings(req.user._id);
       const recent = await Data.find({ userId: req.user._id }).sort({ timestamp: -1 }).limit(20);
       const detection = await detect(saved.water, saved.energy, recent);
-      if (detection && detection.status) {
-        const baseline = recent.slice(1, 11);
-        const avg = (field) => {
-          if (!baseline.length) return 0;
-          return baseline.reduce((sum, item) => sum + Number(item[field] || 0), 0) / baseline.length;
-        };
+      const alertContext = buildResourceAlertContext({
+        detection,
+        reading: saved,
+        history: recent,
+        settings: userSettings,
+      });
 
-        const energyAvg = avg("energy");
-        const waterAvg = avg("water");
-        const energyDelta = Math.max(0, Number(saved.energy) - energyAvg);
-        const waterDelta = Math.max(0, Number(saved.water) - waterAvg);
-
-        const rootCause =
-          detection.reason === "Water Spike"
-            ? saved.water > Math.max(waterAvg * 1.2, 0)
-              ? "Likely leakage or uncontrolled water draw compared to recent baseline."
-              : "Unusual water usage pattern detected against recent history."
-            : saved.energy > Math.max(energyAvg * 1.2, 0)
-              ? "Likely HVAC, lighting, or equipment load increase beyond normal baseline."
-              : "Unusual energy usage pattern detected against recent history.";
-
-        const estimatedLoss = Math.round(energyDelta * 8 + waterDelta * 0.02);
-        const recommendedAction =
-          detection.reason === "Water Spike"
-            ? "Inspect valves, tanks, and pipeline joints. Check for continuous flow after operating hours."
-            : "Review heavy appliances, HVAC schedules, and idle loads. Shift usage to off-peak hours.";
-
-        const mapSeverity = (s) => {
-          if (!s) return "LOW";
-          const up = s.toString().toUpperCase();
-          if (up === "HIGH") return "HIGH";
-          if (up === "MEDIUM") return "MEDIUM";
-          return "LOW";
-        };
-
+      if (alertContext) {
         const alert = await alertService.createAlert({
           userId: req.user._id,
           building: saved.building || "Unknown",
-          message: `${detection.reason}${detection.score ? ` (score:${detection.score})` : ""}`,
-          severity: mapSeverity(detection.severity),
-          rootCause,
-          estimatedLoss,
-          recommendedAction,
+          message: alertContext.message,
+          severity: alertContext.severity,
+          rootCause: alertContext.rootCause,
+          estimatedLoss: alertContext.estimatedLoss,
+          recommendedAction: alertContext.recommendedAction,
         });
 
         if (alert && global.io) global.io.emit("newAlert", alert);
@@ -141,12 +117,19 @@ const sendData = async (req, res) => {
           await notificationService.createNotification({
             userId: req.user._id,
             type: "ALERT",
-            title: `${detection.reason} detected`,
-            message: `${saved.building || "System"} needs attention. ${alert.recommendedAction || "Open the alert center for details."}`,
+            title: alertContext.notification.title,
+            message:
+              alertContext.notification.message ||
+              `${saved.building || "System"} needs attention. ${alert.recommendedAction || "Open the alert center for details."}`,
             link: "/alerts",
-            priority: mapSeverity(detection.severity),
-            dedupeKey: `alert:${alert.building}:${detection.reason}`,
-            metadata: { alertId: alert._id, building: alert.building, severity: alert.severity },
+            priority: alertContext.notification.priority,
+            dedupeKey: alertContext.notification.dedupeKey,
+            metadata: {
+              ...alertContext.notification.metadata,
+              alertId: alert._id,
+              building: alert.building,
+              severity: alert.severity,
+            },
           });
         }
       }

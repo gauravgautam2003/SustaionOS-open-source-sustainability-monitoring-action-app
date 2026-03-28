@@ -1,48 +1,67 @@
 const Settings = require("../models/UserSettings");
+const {
+  DEFAULT_USER_SETTINGS,
+  normalizeUserSettings,
+  sanitizeSettingsPayload,
+} = require("../services/userSettings.service");
 
-// ✅ GET
 exports.getSettings = async (req, res) => {
   try {
     let settings = await Settings.findOne({ user: req.user._id });
 
     if (!settings) {
-      settings = await Settings.create({ user: req.user._id });
+      settings = await Settings.create({ user: req.user._id, ...DEFAULT_USER_SETTINGS });
     }
 
-    res.json(settings);
+    const payload = settings.toObject();
+    return res.json({
+      ...payload,
+      ...normalizeUserSettings(payload),
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ msg: "Error fetching settings" });
+    return res.status(500).json({ msg: "Error fetching settings" });
   }
 };
 
-// ✅ PUT
 exports.updateSettings = async (req, res) => {
   try {
+    const existing = await Settings.findOne({ user: req.user._id }).lean();
+    const payload = sanitizeSettingsPayload(req.body || {}, existing || DEFAULT_USER_SETTINGS);
+
     const settings = await Settings.findOneAndUpdate(
       { user: req.user._id },
-      req.body,
+      { $set: payload, $setOnInsert: { user: req.user._id } },
       { upsert: true, returnDocument: "after" }
     );
 
-    res.json(settings);
+    const response = settings.toObject();
+    return res.json({
+      ...response,
+      ...normalizeUserSettings(response),
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ msg: "Error saving settings" });
+    return res.status(500).json({ msg: "Error saving settings" });
   }
 };
 
-// DELETE / reset to defaults
 exports.deleteSettings = async (req, res) => {
   try {
     await Settings.findOneAndDelete({ user: req.user._id });
 
-    // recreate with defaults so frontend always gets an object
-    const defaults = await Settings.create({ user: req.user._id });
+    const defaults = await Settings.create({ user: req.user._id, ...DEFAULT_USER_SETTINGS });
+    const payload = defaults.toObject();
 
-    res.json({ success: true, settings: defaults });
+    return res.json({
+      success: true,
+      settings: {
+        ...payload,
+        ...normalizeUserSettings(payload),
+      },
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ msg: "Error resetting settings" });
+    return res.status(500).json({ msg: "Error resetting settings" });
   }
 };

@@ -22,5 +22,7 @@ const sensorDeviceSchema = new mongoose.Schema(
 );
 
 sensorDeviceSchema.index({ userId: 1, sensorId: 1 }, { unique: true });
+sensorDeviceSchema.index({ userId: 1, lastSeen: -1 });
+sensorDeviceSchema.index({ userId: 1, status: 1, lastSeen: -1 });
 
 module.exports = mongoose.model("SensorDevice", sensorDeviceSchema);
