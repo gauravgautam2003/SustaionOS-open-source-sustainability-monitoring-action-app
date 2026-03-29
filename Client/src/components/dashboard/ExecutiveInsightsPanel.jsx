@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext } from "react";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 import Card from "../ui/Card";
 import {
   AlertTriangle,
@@ -27,7 +27,7 @@ const ExecutiveInsightsPanel = ({ period = "week", compact = false }) => {
   const [retraining, setRetraining] = useState(false);
   const [trainMessage, setTrainMessage] = useState("");
 
-  const loadInsights = async (isMounted = () => true) => {
+  const loadInsights = useCallback(async (isMounted = () => true) => {
     try {
       setLoading(true);
       const token = getAuthToken();
@@ -54,7 +54,7 @@ const ExecutiveInsightsPanel = ({ period = "week", compact = false }) => {
     } finally {
       if (isMounted()) setLoading(false);
     }
-  };
+  }, [period]);
 
   useEffect(() => {
     let mounted = true;
@@ -63,7 +63,7 @@ const ExecutiveInsightsPanel = ({ period = "week", compact = false }) => {
     return () => {
       mounted = false;
     };
-  }, [period]);
+  }, [loadInsights]);
 
   const retrainModel = async () => {
     try {

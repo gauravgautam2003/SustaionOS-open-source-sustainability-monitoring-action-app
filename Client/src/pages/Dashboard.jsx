@@ -22,6 +22,7 @@ import SuggestionsPanel from "../components/dashboard/SuggestionsPanel";
 import DashboardSkeleton from "../components/skeleton/DashboardSkeleton";
 import PredictionCard from "../components/dashboard/PredictionCard";
 import ExecutiveInsightsPanel from "../components/dashboard/ExecutiveInsightsPanel";
+import CommandCenterPreview from "../components/dashboard/CommandCenterPreview";
 import { apiUrl } from "../utils/api";
 
 const socket = io(apiUrl(""));
@@ -263,6 +264,13 @@ const Dashboard = () => {
               <Gauge size={16} />
               View map
             </button>
+            <button
+              onClick={() => navigate("/recommendations")}
+              className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-700 transition-all duration-300 hover:-translate-y-0.5 dark:text-emerald-300"
+            >
+              <Sparkles size={16} />
+              Mission control
+            </button>
           </div>
         </div>
       </Card>
@@ -316,6 +324,8 @@ const Dashboard = () => {
           </p>
         </Card>
       </div>
+
+      <CommandCenterPreview />
 
       <div className="space-y-4">
         <div className="flex items-end justify-between gap-4">

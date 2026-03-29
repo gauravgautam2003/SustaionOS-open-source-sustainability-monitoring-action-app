@@ -22,7 +22,7 @@ const routeLabels = {
   "/incidents": "Incidents",
   "/impact": "Impact",
   "/buildings": "Buildings",
-  "/recommendations": "Recommendations",
+  "/recommendations": "Mission Control",
   "/notifications": "Notifications",
   "/profile": "Profile",
   "/settings": "Settings",

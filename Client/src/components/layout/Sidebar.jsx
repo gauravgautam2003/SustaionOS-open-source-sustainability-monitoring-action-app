@@ -26,7 +26,7 @@ const menuItems = [
   { name: "Impact", path: "/impact", icon: Leaf },
   { name: "Buildings", path: "/buildings", icon: Building2 },
   { name: "Locations", path: "/locations", icon: MapPin },
-  { name: "Recommendations", path: "/recommendations", icon: Lightbulb },
+  { name: "Mission Control", path: "/recommendations", icon: Lightbulb },
   { name: "Sensors", path: "/sensors", icon: Cpu },
   { name: "Settings", path: "/settings", icon: Settings },
   { name: "Profile", path: "/profile", icon: User },

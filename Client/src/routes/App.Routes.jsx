@@ -1,193 +1,60 @@
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import { Routes, Route } from "react-router-dom";
-
-import Dashboard from "../pages/Dashboard";
-import Analytics from "../pages/Analytics";
-import History from "../pages/History";
-import Reports from "../pages/Reports";
-import Settings from "../pages/Settings";
-import Alerts from "../pages/Alerts";
-import Notifications from "../pages/Notifications";
-import Incidents from "../pages/Incidents";
-import Impact from "../pages/Impact";
-import Buildings from "../pages/Buildings";
-import Locations from "../pages/Locations";
-import Recommendations from "../pages/Recommendations";
-import Sensors from "../pages/Sensors";
-
-import Login from "../pages/Login";
-import Register from "../pages/Register";
 
 import PageWrapper from "../components/layout/PageWrapper";
 import ProtectedRoute from "../components/auth/ProtectedRoute";
-import Profile from "../pages/Profile";
+
+const Dashboard = lazy(() => import("../pages/Dashboard"));
+const Analytics = lazy(() => import("../pages/Analytics"));
+const History = lazy(() => import("../pages/History"));
+const Reports = lazy(() => import("../pages/Reports"));
+const Settings = lazy(() => import("../pages/Settings"));
+const Alerts = lazy(() => import("../pages/Alerts"));
+const Notifications = lazy(() => import("../pages/Notifications"));
+const Incidents = lazy(() => import("../pages/Incidents"));
+const Impact = lazy(() => import("../pages/Impact"));
+const Buildings = lazy(() => import("../pages/Buildings"));
+const Locations = lazy(() => import("../pages/Locations"));
+const Recommendations = lazy(() => import("../pages/Recommendations"));
+const Sensors = lazy(() => import("../pages/Sensors"));
+const Login = lazy(() => import("../pages/Login"));
+const Register = lazy(() => import("../pages/Register"));
+const Profile = lazy(() => import("../pages/Profile"));
+
+const pageFallback = (
+  <div className="p-10 text-center text-sm text-gray-500 dark:text-gray-400">
+    Loading workspace...
+  </div>
+);
+
+const withSuspense = (element) => <Suspense fallback={pageFallback}>{element}</Suspense>;
+
+const protectedPage = (element) => (
+  <ProtectedRoute>
+    <PageWrapper>{withSuspense(element)}</PageWrapper>
+  </ProtectedRoute>
+);
 
 const AppRoutes = () => {
   return (
     <Routes>
+      <Route path="/login" element={withSuspense(<Login />)} />
+      <Route path="/register" element={withSuspense(<Register />)} />
 
-      {/* PUBLIC ROUTES */}
-
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-
-      {/* PROTECTED ROUTES */}
-
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <PageWrapper>
-              <Dashboard />
-            </PageWrapper>
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/analytics"
-        element={
-          <ProtectedRoute>
-            <PageWrapper>
-              <Analytics />
-            </PageWrapper>
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/history"
-        element={
-          <ProtectedRoute>
-            <PageWrapper>
-              <History />
-            </PageWrapper>
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/reports"
-        element={
-          <ProtectedRoute>
-            <PageWrapper>
-              <Reports />
-            </PageWrapper>
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/alerts"
-        element={
-          <ProtectedRoute>
-            <PageWrapper>
-              <Alerts />
-            </PageWrapper>
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/incidents"
-        element={
-          <ProtectedRoute>
-            <PageWrapper>
-              <Incidents />
-            </PageWrapper>
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/impact"
-        element={
-          <ProtectedRoute>
-            <PageWrapper>
-              <Impact />
-            </PageWrapper>
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/buildings"
-        element={
-          <ProtectedRoute>
-            <PageWrapper>
-              <Buildings />
-            </PageWrapper>
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/locations"
-        element={
-          <ProtectedRoute>
-            <PageWrapper>
-              <Locations />
-            </PageWrapper>
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/recommendations"
-        element={
-          <ProtectedRoute>
-            <PageWrapper>
-              <Recommendations />
-            </PageWrapper>
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/sensors"
-        element={
-          <ProtectedRoute>
-            <PageWrapper>
-              <Sensors />
-            </PageWrapper>
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/notifications"
-        element={
-          <ProtectedRoute>
-            <PageWrapper>
-              <Notifications />
-            </PageWrapper>
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/settings"
-        element={
-          <ProtectedRoute>
-            <PageWrapper>
-              <Settings />
-            </PageWrapper>
-          </ProtectedRoute>
-        }
-      />
-
-
-      <Route
-        path="/profile"
-        element={
-          <ProtectedRoute>
-            <PageWrapper>
-              <Profile />
-            </PageWrapper>
-          </ProtectedRoute>
-        }
-      />
-
+      <Route path="/" element={protectedPage(<Dashboard />)} />
+      <Route path="/analytics" element={protectedPage(<Analytics />)} />
+      <Route path="/history" element={protectedPage(<History />)} />
+      <Route path="/reports" element={protectedPage(<Reports />)} />
+      <Route path="/alerts" element={protectedPage(<Alerts />)} />
+      <Route path="/incidents" element={protectedPage(<Incidents />)} />
+      <Route path="/impact" element={protectedPage(<Impact />)} />
+      <Route path="/buildings" element={protectedPage(<Buildings />)} />
+      <Route path="/locations" element={protectedPage(<Locations />)} />
+      <Route path="/recommendations" element={protectedPage(<Recommendations />)} />
+      <Route path="/sensors" element={protectedPage(<Sensors />)} />
+      <Route path="/notifications" element={protectedPage(<Notifications />)} />
+      <Route path="/settings" element={protectedPage(<Settings />)} />
+      <Route path="/profile" element={protectedPage(<Profile />)} />
     </Routes>
   );
 };

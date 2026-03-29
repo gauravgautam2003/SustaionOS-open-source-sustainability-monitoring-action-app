@@ -2,6 +2,7 @@ const Data = require("../models/Data");
 const scoreService = require("../services/sustainabilityScore.engine");
 const executiveInsights = require("../services/executiveInsights.service");
 const mlBridge = require("../services/mlBridge.service");
+const commandCenterService = require("../services/commandCenter.service");
 
 // helper to compute startDate from period
 const computeStartDate = (period) => {
@@ -129,6 +130,19 @@ exports.getInsights = async (req, res, next) => {
     const { period } = req.query;
     const insights = await executiveInsights.getExecutiveInsights(userId, period || "week");
     res.json(insights);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getCommandCenter = async (req, res, next) => {
+  try {
+    const userId = req.user && req.user._id;
+    if (!userId) return res.status(401).json({ msg: "Unauthorized" });
+
+    const { period } = req.query;
+    const commandCenter = await commandCenterService.getCommandCenter(userId, period || "week");
+    res.json(commandCenter);
   } catch (err) {
     next(err);
   }

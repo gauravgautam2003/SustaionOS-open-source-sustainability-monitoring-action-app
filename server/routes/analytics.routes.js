@@ -11,6 +11,7 @@ router.get("/score", controller.getScore);
 router.get("/trend", controller.getTrend);
 router.get("/history", controller.getHistory);
 router.get("/insights", controller.getInsights);
+router.get("/command-center", controller.getCommandCenter);
 router.get("/model", controller.getModelStatus);
 router.post("/model/train", controller.trainModel);
 
