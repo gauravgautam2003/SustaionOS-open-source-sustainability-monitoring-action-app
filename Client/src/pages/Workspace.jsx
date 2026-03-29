@@ -25,9 +25,11 @@ const scopeOptions = [
 const roleOptions = ["ADMIN", "OPERATOR", "ANALYST", "VIEWER"];
 const memberStatusOptions = ["ACTIVE", "SUSPENDED"];
 const planOptions = ["STARTER", "GROWTH", "ENTERPRISE"];
+const canReadAuditFeed = (role = "") => ["OWNER", "ADMIN", "OPERATOR", "ANALYST"].includes(role);
+const canManageWorkspaceRole = (role = "") => ["OWNER", "ADMIN"].includes(role);
 
 const Workspace = () => {
-  const { updateUser } = useContext(AuthContext);
+  const { user, updateUser } = useContext(AuthContext);
   const token = getAuthToken();
   const apiBase = useMemo(() => getApiBase() || window.location.origin, []);
 
@@ -57,7 +59,9 @@ const Workspace = () => {
   const [planSelection, setPlanSelection] = useState("STARTER");
   const [memberDrafts, setMemberDrafts] = useState({});
 
-  const canManageWorkspace = ["OWNER", "ADMIN"].includes(overview?.workspace?.role || "");
+  const activeRole = overview?.workspace?.role || user?.role || "";
+  const canManageWorkspace = canManageWorkspaceRole(activeRole);
+  const canViewAuditFeed = canReadAuditFeed(activeRole);
   const sampleCurl = useMemo(() => {
     if (!generatedSecret) return "";
     return `curl -X POST "${apiBase}/api/iot/webhook/ingest" \\
@@ -76,20 +80,46 @@ const Workspace = () => {
     try {
       setLoading(true);
       const headers = { Authorization: `Bearer ${token}` };
-      const [overviewRes, keysRes, auditRes, profileRes] = await Promise.all([
+      const [overviewRes, profileRes] = await Promise.all([
         fetch(apiUrl("/api/platform/overview"), { headers }),
-        fetch(apiUrl("/api/platform/api-keys"), { headers }),
-        fetch(apiUrl("/api/platform/audit?limit=8"), { headers }),
         fetch(apiUrl("/api/user/profile"), { headers }),
       ]);
       const overviewJson = await overviewRes.json();
-      const keysJson = await keysRes.json();
-      const auditJson = await auditRes.json();
       const profileJson = await profileRes.json();
       if (!overviewRes.ok) throw new Error(overviewJson.msg || "Workspace overview failed");
-      if (!keysRes.ok) throw new Error(keysJson.msg || "API key load failed");
-      if (!auditRes.ok) throw new Error(auditJson.msg || "Audit load failed");
       if (!profileRes.ok) throw new Error(profileJson.msg || "Profile load failed");
+
+      const resolvedRole = overviewJson.workspace?.role || profileJson.user?.role || "";
+      let keysJson = { apiKeys: [] };
+      let auditJson = { logs: [] };
+
+      if (canManageWorkspaceRole(resolvedRole) || canReadAuditFeed(resolvedRole)) {
+        const optionalRequests = [];
+        if (canManageWorkspaceRole(resolvedRole)) {
+          optionalRequests.push(fetch(apiUrl("/api/platform/api-keys"), { headers }));
+        }
+        if (canReadAuditFeed(resolvedRole)) {
+          optionalRequests.push(fetch(apiUrl("/api/platform/audit?limit=8"), { headers }));
+        }
+
+        const optionalResponses = await Promise.all(optionalRequests);
+        let responseIndex = 0;
+
+        if (canManageWorkspaceRole(resolvedRole)) {
+          const keysRes = optionalResponses[responseIndex++];
+          const parsedKeys = await keysRes.json();
+          if (!keysRes.ok) throw new Error(parsedKeys.msg || "API key load failed");
+          keysJson = parsedKeys;
+        }
+
+        if (canReadAuditFeed(resolvedRole)) {
+          const auditRes = optionalResponses[responseIndex++];
+          const parsedAudit = await auditRes.json();
+          if (!auditRes.ok) throw new Error(parsedAudit.msg || "Audit load failed");
+          auditJson = parsedAudit;
+        }
+      }
+
       setOverview(overviewJson);
       setApiKeys(Array.isArray(keysJson.apiKeys) ? keysJson.apiKeys : []);
       setAuditLogs(Array.isArray(auditJson.logs) ? auditJson.logs : []);
@@ -353,26 +383,28 @@ const Workspace = () => {
 
           <Card className="border border-gray-200/80 p-6 dark:border-gray-800/80">
             <div className="mb-4 flex items-center gap-2"><KeyRound size={18} className="text-primary" /><h3 className="text-lg font-semibold text-gray-900 dark:text-white">Create workspace API key</h3></div>
-            <form onSubmit={createKey} className="space-y-3">
-              <input value={keyForm.label} onChange={(event) => setKeyForm((prev) => ({ ...prev, label: event.target.value }))} className="w-full rounded-xl border border-gray-200 bg-white p-3 text-black dark:border-gray-700 dark:bg-gray-900 dark:text-white" placeholder="Key label" />
-              <input type="number" min="1" max="365" value={keyForm.expiresInDays} onChange={(event) => setKeyForm((prev) => ({ ...prev, expiresInDays: event.target.value }))} className="w-full rounded-xl border border-gray-200 bg-white p-3 text-black dark:border-gray-700 dark:bg-gray-900 dark:text-white" placeholder="Expires in days" />
-              <div className="space-y-2">{scopeOptions.map((scope) => <label key={scope.value} className="flex items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-700 dark:border-gray-800 dark:text-gray-300"><input type="checkbox" checked={keyForm.scopes.includes(scope.value)} onChange={() => toggleScope(scope.value)} />{scope.label}</label>)}</div>
-              <button className="w-full rounded-xl bg-slate-950 py-3 font-semibold text-white dark:bg-white dark:text-slate-950">{creatingKey ? "Creating..." : "Generate API key"}</button>
-            </form>
-            {generatedSecret ? <div className="mt-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4"><div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">One-time secret</p><button onClick={() => copyText(generatedSecret, "API key copied")} className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300"><Copy size={12} />Copy</button></div><code className="mt-3 block overflow-x-auto rounded-xl bg-black/80 px-4 py-3 text-sm text-emerald-200">{generatedSecret}</code></div> : null}
+            {canManageWorkspace ? <>
+              <form onSubmit={createKey} className="space-y-3">
+                <input value={keyForm.label} onChange={(event) => setKeyForm((prev) => ({ ...prev, label: event.target.value }))} className="w-full rounded-xl border border-gray-200 bg-white p-3 text-black dark:border-gray-700 dark:bg-gray-900 dark:text-white" placeholder="Key label" />
+                <input type="number" min="1" max="365" value={keyForm.expiresInDays} onChange={(event) => setKeyForm((prev) => ({ ...prev, expiresInDays: event.target.value }))} className="w-full rounded-xl border border-gray-200 bg-white p-3 text-black dark:border-gray-700 dark:bg-gray-900 dark:text-white" placeholder="Expires in days" />
+                <div className="space-y-2">{scopeOptions.map((scope) => <label key={scope.value} className="flex items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-700 dark:border-gray-800 dark:text-gray-300"><input type="checkbox" checked={keyForm.scopes.includes(scope.value)} onChange={() => toggleScope(scope.value)} />{scope.label}</label>)}</div>
+                <button className="w-full rounded-xl bg-slate-950 py-3 font-semibold text-white dark:bg-white dark:text-slate-950">{creatingKey ? "Creating..." : "Generate API key"}</button>
+              </form>
+              {generatedSecret ? <div className="mt-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4"><div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">One-time secret</p><button onClick={() => copyText(generatedSecret, "API key copied")} className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300"><Copy size={12} />Copy</button></div><code className="mt-3 block overflow-x-auto rounded-xl bg-black/80 px-4 py-3 text-sm text-emerald-200">{generatedSecret}</code></div> : null}
+            </> : <div className="rounded-2xl border border-dashed border-gray-300 p-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">Workspace API keys sirf owners aur admins manage kar sakte hain.</div>}
           </Card>
         </div>
 
-        {generatedSecret ? <Card className="border border-gray-200/80 p-6 dark:border-gray-800/80"><div className="flex items-center justify-between gap-3"><div><h3 className="text-lg font-semibold text-gray-900 dark:text-white">Quick-start curl</h3><p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Use this key for webhook or gateway ingestion.</p></div><button onClick={() => copyText(sampleCurl, "Sample curl copied")} className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 dark:border-gray-700 dark:text-gray-200"><Copy size={16} />Copy sample</button></div><pre className="mt-4 overflow-x-auto rounded-2xl bg-slate-950 p-4 text-sm text-slate-100">{sampleCurl}</pre></Card> : null}
+        {generatedSecret && canManageWorkspace ? <Card className="border border-gray-200/80 p-6 dark:border-gray-800/80"><div className="flex items-center justify-between gap-3"><div><h3 className="text-lg font-semibold text-gray-900 dark:text-white">Quick-start curl</h3><p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Use this key for webhook or gateway ingestion.</p></div><button onClick={() => copyText(sampleCurl, "Sample curl copied")} className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 dark:border-gray-700 dark:text-gray-200"><Copy size={16} />Copy sample</button></div><pre className="mt-4 overflow-x-auto rounded-2xl bg-slate-950 p-4 text-sm text-slate-100">{sampleCurl}</pre></Card> : null}
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
           <Card className="border border-gray-200/80 p-6 dark:border-gray-800/80">
             <div className="mb-4 flex items-center gap-2"><KeyRound size={18} className="text-primary" /><h3 className="text-lg font-semibold text-gray-900 dark:text-white">Workspace API keys</h3></div>
-            <div className="space-y-3">{apiKeys.length ? apiKeys.map((item) => <div key={item._id} className="rounded-2xl border border-gray-200 p-4 dark:border-gray-800"><div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between"><div><p className="font-semibold text-gray-900 dark:text-white">{item.label}</p><p className="text-sm text-gray-500 dark:text-gray-400">{item.prefix}...{item.lastFour}</p><p className="text-xs text-gray-500 dark:text-gray-400">Owner: {item.ownerName || "Workspace"} {item.ownerEmail ? `(${item.ownerEmail})` : ""}</p></div>{item.status === "ACTIVE" ? <button onClick={() => revokeKey(item._id)} className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-500">Revoke</button> : <span className="rounded-full border border-gray-200 px-4 py-2 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">{item.status}</span>}</div></div>) : <div className="rounded-2xl border border-dashed border-gray-300 p-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">No API keys issued yet.</div>}</div>
+            <div className="space-y-3">{canManageWorkspace ? (apiKeys.length ? apiKeys.map((item) => <div key={item._id} className="rounded-2xl border border-gray-200 p-4 dark:border-gray-800"><div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between"><div><p className="font-semibold text-gray-900 dark:text-white">{item.label}</p><p className="text-sm text-gray-500 dark:text-gray-400">{item.prefix}...{item.lastFour}</p><p className="text-xs text-gray-500 dark:text-gray-400">Owner: {item.ownerName || "Workspace"} {item.ownerEmail ? `(${item.ownerEmail})` : ""}</p></div>{item.status === "ACTIVE" ? <button onClick={() => revokeKey(item._id)} className="rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-500">Revoke</button> : <span className="rounded-full border border-gray-200 px-4 py-2 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">{item.status}</span>}</div></div>) : <div className="rounded-2xl border border-dashed border-gray-300 p-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">No API keys issued yet.</div>) : <div className="rounded-2xl border border-dashed border-gray-300 p-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">API key inventory sirf owners aur admins dekh sakte hain.</div>}</div>
           </Card>
           <Card className="border border-gray-200/80 p-6 dark:border-gray-800/80">
             <div className="mb-4 flex items-center gap-2"><ScrollText size={18} className="text-primary" /><h3 className="text-lg font-semibold text-gray-900 dark:text-white">Audit feed</h3></div>
-            <div className="space-y-3">{auditLogs.length ? auditLogs.map((log) => <div key={log._id} className="rounded-2xl border border-gray-200 p-4 dark:border-gray-800"><p className="font-semibold text-gray-900 dark:text-white">{log.action}</p><p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{log.category} | {log.status} | {new Date(log.createdAt).toLocaleString()}</p></div>) : <div className="rounded-2xl border border-dashed border-gray-300 p-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">No audit events yet.</div>}</div>
+            <div className="space-y-3">{canViewAuditFeed ? (auditLogs.length ? auditLogs.map((log) => <div key={log._id} className="rounded-2xl border border-gray-200 p-4 dark:border-gray-800"><p className="font-semibold text-gray-900 dark:text-white">{log.action}</p><p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{log.category} | {log.status} | {new Date(log.createdAt).toLocaleString()}</p></div>) : <div className="rounded-2xl border border-dashed border-gray-300 p-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">No audit events yet.</div>) : <div className="rounded-2xl border border-dashed border-gray-300 p-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">Audit feed viewer role ke liye available nahi hai.</div>}</div>
           </Card>
         </div>
       </> : null}

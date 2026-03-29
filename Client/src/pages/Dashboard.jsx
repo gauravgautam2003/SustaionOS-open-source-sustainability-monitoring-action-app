@@ -177,7 +177,7 @@ const Dashboard = () => {
   ];
 
   return (
-    <div className="space-y-8 animate-fadeIn relative">
+    <div className="relative space-y-8 overflow-x-hidden animate-fadeIn">
       <div className="absolute -top-10 -right-10 w-72 h-72 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
       <div className="absolute top-36 -left-12 w-52 h-52 rounded-full bg-blue-500/10 blur-3xl pointer-events-none" />
 
