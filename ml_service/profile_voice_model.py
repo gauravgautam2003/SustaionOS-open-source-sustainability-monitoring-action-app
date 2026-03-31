@@ -1,15 +1,24 @@
+# Enable postponed evaluation of type annotations (improves performance & avoids circular imports)
+
 from __future__ import annotations
 
 import math
 import re
 from collections import Counter, defaultdict
 
-
+# Regex to extract tokens (English words, Hindi words, numbers)
 TOKEN_RE = re.compile(r"[A-Za-z]+|[\u0900-\u097F]+|\d+")
+# Regex to split sentences into segments using connectors like "and", "aur", "then", etc.
 SPLIT_RE = re.compile(r"(?:,|;|/|\||\n|\band\b|\baur\b|\bthen\b|\bphir\b|\bfir\b|\balso\b|\bwith\b)+", re.IGNORECASE)
 
 
 def normalize_text(value: object) -> str:
+      """
+    Normalize raw input text:
+    - Remove newlines
+    - Replace fancy quotes with standard ones
+    - Remove invisible characters
+    """
     return (
         str(value or "")
         .replace("\r", " ")
@@ -23,6 +32,11 @@ def normalize_text(value: object) -> str:
 
 
 def compact_text(value: object) -> str:
+    
+    """
+    Normalize text and remove extra spaces.
+    """
+    
     return re.sub(r"\s+", " ", normalize_text(value)).strip()
 
 
@@ -33,8 +47,13 @@ def tokenise(value: object) -> list[str]:
     tokens = [token.strip(".,;:!?।॥") for token in TOKEN_RE.findall(text)]
     return [token for token in tokens if token]
 
-
 def trim_after_fillers(text: str, fillers: set[str]) -> str:
+    
+    """
+    Stop extracting text once filler words are encountered.
+    Example: "Rahul hai" → "Rahul"
+    """
+    
     tokens = tokenise(text)
     if not tokens:
         return ""
@@ -47,6 +66,14 @@ def trim_after_fillers(text: str, fillers: set[str]) -> str:
 
 
 def clean_candidate(text: str, fillers: set[str]) -> str:
+    
+      """
+    Clean extracted candidate:
+    - Remove prefixes
+    - Remove fillers
+    - Remove trailing punctuation
+    """
+    
     candidate = compact_text(text)
     if not candidate:
         return ""
@@ -57,20 +84,49 @@ def clean_candidate(text: str, fillers: set[str]) -> str:
 
 
 class NaiveBayesTextModel:
+
+       """
+    Simple Naive Bayes classifier for text classification.
+    Used to classify input into:
+    - name
+    - building
+    - other
+    """
+    
     def __init__(self) -> None:
+         # Count of each class
+        
         self.class_counts: Counter[str] = Counter()
+
+        # Feature counts per class
         self.feature_counts: dict[str, Counter[str]] = defaultdict(Counter)
+
+           # Total features per class
         self.feature_totals: Counter[str] = Counter()
+
+         # Unique vocabulary
         self.vocabulary: set[str] = set()
         self.trained = False
 
     def _features(self, text: str) -> list[str]:
+
+          """
+        Extract features:
+        - Unigrams (single words)
+        - Bigrams (word pairs)
+        """
+        
         tokens = tokenise(text)
         feats = [f"tok:{token}" for token in tokens]
         feats.extend(f"bi:{a}_{b}" for a, b in zip(tokens, tokens[1:]))
         return feats
 
     def train(self, samples: list[tuple[str, str]]) -> None:
+
+        """
+        Train model with labeled samples.
+        """
+        
         self.class_counts.clear()
         self.feature_counts.clear()
         self.feature_totals.clear()
@@ -87,8 +143,19 @@ class NaiveBayesTextModel:
         self.trained = bool(self.class_counts)
 
     def predict(self, text: str) -> tuple[str, float, dict[str, float]]:
+
+          """
+        Predict label for given text.
+        Returns:
+        - predicted label
+        - confidence
+        - probability distribution
+        """
+        
         if not self.trained:
             return "other", 0.0, {"other": 1.0}
+
+       # Likelihood
 
         features = self._features(text)
         labels = list(self.class_counts.keys())
@@ -103,6 +170,7 @@ class NaiveBayesTextModel:
                 log_prob += math.log((self.feature_counts[label][feature] + 1) / denom)
             log_probs[label] = log_prob
 
+        # Convert log probs to normal probabilities
         peak_label = max(log_probs, key=log_probs.get)
         peak = log_probs[peak_label]
         exp_scores = {label: math.exp(score - peak) for label, score in log_probs.items()}
@@ -113,6 +181,20 @@ class NaiveBayesTextModel:
 
 
 class ProfileVoiceModel:
+
+       """
+    Main AI model to extract:
+    - User name
+    - Building name
+
+    Works with:
+    - NLP rules
+    - Regex patterns
+    - Naive Bayes classification
+    """
+
+    # Common filler words (ignored during extraction)
+
     NAME_FILLERS = {
         "hai",
         "hain",
@@ -244,11 +326,25 @@ class ProfileVoiceModel:
     ]
 
     def __init__(self) -> None:
+
+         # Initialize ML model
+        
         self.model = NaiveBayesTextModel()
+        
+        # Training data
         self.samples = self._build_samples()
+
+        # Train model
         self.model.train(self.samples)
 
     def _build_samples(self) -> list[tuple[str, str]]:
+
+        """
+        Create training dataset for:
+        - name
+        - building
+        - other
+        """
         names = ["rahul", "gautam", "gautam sagar", "amit", "neha", "rohan", "arjun", "sneha", "priya", "ankit"]
         buildings = [
             "sharda college",
@@ -320,10 +416,25 @@ class ProfileVoiceModel:
             for template in building_templates:
                 samples.append((template.format(value=value), "building"))
         for text in noise:
+
+            
+        # Noise data
             samples.append((text, "other"))
         return samples
 
     def _classify_segment(self, segment: str) -> tuple[str, float, dict[str, float]]:
+
+        """
+        Main function:
+        Extract name & building from user input.
+
+        Returns:
+        - draft (name, building)
+        - confidence score
+        - segments analysis
+        - missing fields (needs)
+        """ 
+        
         label, confidence, probs = self.model.predict(segment)
         return label, confidence, probs
 
@@ -506,7 +617,7 @@ class ProfileVoiceModel:
                     name_value = name_candidate
                 elif re.search(r"\b(mera naam|my name is|call me|i am|i'm|im|naam|name|मेरा नाम|नाम|मैं|main|mujhe)\b", segment, re.IGNORECASE):
                     needs.add("name")
-
+         # Split into smaller segments
             if not building_value:
                 building_candidate = self._extract_after_pattern(
                     segment,
@@ -562,6 +673,8 @@ class ProfileVoiceModel:
             elif re.search(r"\b(my building is|mera building|meri building|building is|building|site|campus|college|office|branch|block|place|location|venue|school|institute|university|बिल्डिंग|भवन|कैंपस|लोकेशन|स्थान)\b", source, re.IGNORECASE):
                 needs.add("building")
 
+        # Average confidence
+        
         confidence = round((sum(confidence_scores) / len(confidence_scores)) * 100.0 if confidence_scores else 0.0, 2)
         if name_value and building_value:
             confidence = min(99.0, confidence + 12.0)
@@ -575,5 +688,5 @@ class ProfileVoiceModel:
             "needs": sorted(needs),
         }
 
-
+# Global instance (used across app)
 PROFILE_VOICE_MODEL = ProfileVoiceModel()
