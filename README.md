@@ -288,7 +288,15 @@ Current deployed links:
 - `Live API Base`: `https://sustaionos-open-source-sustainability-ip3w.onrender.com`
 - `Live API Health`: `https://sustaionos-open-source-sustainability-ip3w.onrender.com/api/health`
 - `Live ML Health`: `https://sustaionos-open-source-sustainability-do10.onrender.com/health`
-- `Demo Video`: `PASTE_YOUR_DEMO_VIDEO_LINK_HERE`
+- `Demo Video`: [`demo.mp4`](demo.mp4)
+
+### Demo Video
+
+Click the preview below to open the recorded demo walkthrough.
+
+[![Watch the SustainOS AI demo](screenshots/Dashboard.jpeg)](demo.mp4)
+
+Direct video file: [demo.mp4](demo.mp4)
 
 ### Best Demo Story
 
