@@ -3,6 +3,8 @@ import { Leaf } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { ThemeContext } from "../../context/ThemeContext";
 
+// Create paths in the form of object to move individual Pages
+
 const quickLinks = [
   { label: "Dashboard", path: "/" },
   { label: "Reports", path: "/reports" },
@@ -13,7 +15,7 @@ const quickLinks = [
 const Footer = () => {
   const { darkMode } = useContext(ThemeContext);
   const navigate = useNavigate();
-
+    {/* Footer */}
   return (
     <footer
       className={`w-full border-t transition-colors duration-300 ${
@@ -35,7 +37,7 @@ const Footer = () => {
               </p>
             </div>
           </div>
-
+          {/* Looping for Quick links for render path names*/}
           <div className="flex flex-wrap gap-2">
             {quickLinks.map((item) => (
               <button
@@ -53,12 +55,15 @@ const Footer = () => {
             ))}
           </div>
         </div>
-
+    {/* Add dark and light mode theme */}
         <div
           className={`mt-4 flex flex-col gap-2 border-t pt-4 text-sm md:flex-row md:items-center md:justify-between ${
             darkMode ? "border-gray-800 text-gray-400" : "border-gray-200 text-gray-600"
           }`}
         >
+
+          {/* Add live Date and Year , it will be render live monitoring active*/}
+          
           <p>{new Date().getFullYear()} SustainOS. Smart sustainability monitoring for modern campuses.</p>
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide">
             <span className="h-2 w-2 rounded-full bg-emerald-500" />
@@ -66,7 +71,7 @@ const Footer = () => {
           </div>
         </div>
       </div>
-
+      {/* Add dark and light mode theme for mobile */}
       <div
         className={`h-1 w-full ${
           darkMode
