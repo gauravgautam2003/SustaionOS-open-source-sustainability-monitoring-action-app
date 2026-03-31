@@ -1,5 +1,9 @@
 import React from "react";
 
+// Creaate Card Component for render anywhere in the SustainOS
+// Fetch Data in the form of Children and show data on Dashboard as card 
+// it will be fetch CSS properties that come from client
+
 const Card = ({ children, className = "" }) => {
   return (
     <div
