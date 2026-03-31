@@ -6,11 +6,19 @@ import AIChatWidget from "../ai/AIChatWidget";
 import Footer from "../ui/Footer"; // Pro-level footer
 import { lockBodyScroll, unlockBodyScroll } from "../../utils/scrollLock";
 
+// PageWrapper component acts as the main layout wrapper
 const PageWrapper = ({ children }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  // Hook to track current route (used for re-rendering Header on route change)
+  
   const location = useLocation();
 
+   /**
+   * Effect: Lock body scroll when sidebar is open
+   * Prevents background scrolling for better UX
+   */
+  
   useEffect(() => {
     if (isOpen) {
       lockBodyScroll("sidebar");
@@ -20,12 +28,19 @@ const PageWrapper = ({ children }) => {
     unlockBodyScroll("sidebar");
   }, [isOpen]);
 
+  /**
+   * Effect: Listen for custom AI chat open/close events
+   * Updates chatOpen state based on event detail
+   */
+  
   useEffect(() => {
     const onChatState = (event) => {
       setChatOpen(Boolean(event?.detail?.open));
     };
 
+    // Add custom event listener
     window.addEventListener("sustainos:ai-chat-state", onChatState);
+      // Cleanup listener on component unmount
     return () => window.removeEventListener("sustainos:ai-chat-state", onChatState);
   }, []);
 
@@ -36,8 +51,9 @@ const PageWrapper = ({ children }) => {
         <Sidebar isOpen={isOpen} setIsOpen={setIsOpen} />
 
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+              {/* Header re-renders on route change */}
           <Header key={location.pathname} setIsOpen={setIsOpen} />
-
+              {/* Main content area */}
           <main
             className={`flex-1 min-h-0 overscroll-contain ${
               chatOpen ? "overflow-hidden" : "overflow-y-auto"
@@ -50,7 +66,7 @@ const PageWrapper = ({ children }) => {
           </main>
         </div>
       </div>
-
+  {/* AI Chat widget (floating component) */}
       <AIChatWidget />
     </div>
   );
